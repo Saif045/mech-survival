@@ -1,16 +1,8 @@
-; Engine configuration file.
-; It's best edited using the editor UI and not directly,
-; since the parameters that go here are not all obvious.
-;
-; Format:
-;   [section] ; section goes between []
-;   param=value ; assign values to parameters
-
 config_version=5
 
 [application]
 
-config/name="GameFactory"
+config/name="GameFactory-mech-survival"
 run/main_scene="res://factory/shell/app_bootstrap.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
@@ -53,10 +45,6 @@ project/assembly_name="GameFactory"
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/plugin_updater/plugin.cfg", "res://addons/maaacks_game_template/plugin.cfg", "res://addons/netfox.internals/plugin.cfg", "res://addons/netfox/plugin.cfg", "res://addons/GodotGAS/plugin.cfg")
-
-[steam]
-
-initialization/processes/initialize_on_startup=false
 
 [input]
 
