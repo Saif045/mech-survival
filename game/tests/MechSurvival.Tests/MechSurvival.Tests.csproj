@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NuGetAudit>false</NuGetAudit>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
+    <!-- Compile the exact product rules without loading Godot or its native runtime. -->
+    <Compile Include="../../mech/MechSlot.cs" Link="Model/MechSlot.cs" />
+    <Compile Include="../../mech/PartDefinition.cs" Link="Model/PartDefinition.cs" />
+    <Compile Include="../../mech/PartInstance.cs" Link="Model/PartInstance.cs" />
+    <Compile Include="../../mech/MechBody.cs" Link="Model/MechBody.cs" />
+    <Compile Include="../../mech/MechBodyView.cs" Link="Model/MechBodyView.cs" />
+  </ItemGroup>
+</Project>
