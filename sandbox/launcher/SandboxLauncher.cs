@@ -24,6 +24,7 @@ public partial class SandboxLauncher : Node
             ["netfox-player-3d"] = "res://sandbox/netfox/netfox_player_3d_probe.tscn",
             ["gas-interop"] = "res://sandbox/gas/godot_gas_interop_probe.tscn",
             ["round-reuse"] = "res://sandbox/shell/round_reuse_probe.tscn",
+            ["custom-player-lifecycle"] = "res://sandbox/shell/custom_player_lifecycle_probe.tscn",
             ["round-rpc"] = "res://sandbox/shell/round_rpc_probe.tscn"
         };
 

@@ -57,6 +57,32 @@ mechanic in `factory/` because it might someday be reusable. A missing extension
 seam can justify an upstream improvement when its reusable contract is clear.
 Otherwise keep game-specific behavior in the game.
 
+## Custom gameplay player scenes
+
+`OnlineGameplayWorld.PlayerScene` is a downstream composition seam. Set it to a
+saved game-owned `PackedScene`; its host does not need to inherit
+`NetworkPlayer3D` (or even `Node3D`). It must satisfy the normal `NetworkWorld`
+spawn contract: a direct child named `NetworkObject` with the `NetworkObject`
+script, and a valid scene resource UID. The shell supplies a `spawn_position`
+dictionary, so the host must implement `INetworkSpawnInitializable` to consume
+that data before tree entry. Game-specific movement and presentation stay in
+the game-owned scene.
+
+The server binds runtime object identity and represented `OwnerPeerId`;
+represented ownership does not transfer the host's Godot authority.
+`PlayerLifecycle` tracks `PlayerId`, `PeerId`, and `NetworkObjectId` independently
+of the host class. Round reset waits for registered player objects to leave the
+world before removing remaining round objects, retaining the session and world
+ID allocator. The default `network_player_3d.tscn` sample remains unchanged.
+
+The focused `sandbox/shell/custom_player_lifecycle_probe.tscn` checks this
+contract in Godot using a minimal `Node` host and synthetic registry peers;
+`round_reuse_probe.tscn` covers the default sample's populated round reset. Run
+both with `sandbox/shell/run_custom_player_lifecycle_probe.ps1` after building;
+the runner imports resources, asserts three rounds for each scene, and preserves
+logs and cleanup results under `artifacts/custom_player_lifecycle/<Label>/`.
+These local probes do not establish Steam transport or visual gameplay acceptance.
+
 ## Create a new game
 
 These are instructions for use after `gamefactory-v0.1` has been published;
