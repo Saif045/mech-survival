@@ -63,7 +63,7 @@ linear effective output, saturation at zero, retained destroyed parts,
 capability loss, unrelated-part stability, captured views, invalid requests,
 empty targets and absence of publication for no-op damage.
 
-Two local Godot/ENet peers compare actual replicated snapshots and independently
+Task 02's accepted two local Godot/ENet peers compared actual replicated snapshots and independently
 derived raw/effective output plus all capability counts at eight stages:
 
 1. Late join receives an already damaged leg near condition 0.35.
@@ -112,3 +112,6 @@ restored APPDATA and frozen source/build hashes. No Steam/VM A/B is required.
 This accepts the structural damage contract on the scripted local Godot/ENet
 boundary. Task 03 can consume these immutable projections without implementing
 another physical condition or effective-output model.
+
+The current probe additionally exercises [canonical Mech GAS](mech-gas.md);
+the Task 02 results above preserve the original eight-stage damage evidence.

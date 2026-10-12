@@ -22,9 +22,17 @@ add a generic inventory, ECS, stat bus, or persistence schema.
 Physical composition, condition, normalized damage and effective structural
 output belong to the mech structure model. Effective output is base contribution
 times condition; the raw contribution API keeps its accepted meaning. Gameplay
-attributes/effects/tags belong to the later Mech GAS layer; do not build duplicate
+attributes/effects/tags belong to Mech GAS; do not build duplicate
 attribute systems between them. Read [the damage contract](docs/mech-damage.md)
 for damage work.
+
+Canonical gameplay attributes, tags, effects, future resources and abilities
+belong to the game-owned Mech GAS composition. Clients consume the replicated
+server GAS result and its local ASC mirror, not independently derive canonical
+values from physical output. Keep interop inside the mech adapter/bridge; do not
+attach the player-specific factory GAS component to mechs. See
+[the Mech GAS contract](docs/mech-gas.md). Energy/Heat are the next layer, deferred
+until explicitly requested.
 
 Damage formulas, repair, heat, energy consumption,
 movement degradation, survival, salvage, rescue, combat, extraction, and
@@ -59,3 +67,12 @@ Offline `mech_damage_offline_20261012_031922` and eight-stage two-peer
 effective-output matching, 64 client rejections, reset/despawn/fresh state and
 process/profile/port cleanup. See the damage contract for evidence. Keep this
 accepted physical layer separate from Task 03's future canonical Mech GAS state.
+
+Task 03 Mech GAS validation: build, 50 product cases and 73 foundation cases passed.
+Offline `mech_gas_teardown_offline_20261012_035827` and twelve-stage two-peer
+`mech_gas_matcher_multiplayer_20261012_040302` passed using the actual vendored ASC,
+canonical snapshots/mirrors, additive effect coexistence, damaged/modified late
+sync, native tags, 144 client rejections and full cleanup. Earlier probe teardown
+and log-parser failures are preserved in the GAS contract. Source-owned baseline
+effect replacement must preserve unrelated native effects; do not reset the ASC
+when physical structure changes. Keep Energy/Heat deferred until Task 04.

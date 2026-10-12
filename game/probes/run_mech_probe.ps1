@@ -33,8 +33,9 @@ function Get-FrozenState {
 # DEFINE: import <=60s; offline <=40s; host-ready <=10s, two-peer scenario <=40s.
 # Assertions: scene/resource loading and rules; late join damaged identity/condition;
 # server damage, raw/effective output, capabilities, no-op publication, replace,
-# destroy, detach, reset; eight rejected client mutations per stage; disconnect,
-# despawn, fresh-body state cleanup and released test port.
+# destroy, detach, reset; native GAS attributes/tags, additive modifier coexistence,
+# canonical mirror/late synchronization; twelve rejected client mutations per stage;
+# disconnect, despawn, fresh-body state cleanup and released test port.
 # Participants are test-owned local Godot processes only. No VM or Steam session.
 @{ mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/mech_body_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
@@ -88,13 +89,16 @@ try {
     if ($Mode -eq 'Offline') {
         if (-not (Select-String -LiteralPath "$evidence/offline.stdout.log" -Pattern 'MECH_OFFLINE_PASS' -Quiet)) { throw 'Offline assertions did not complete.' }
         if (-not (Select-String -LiteralPath "$evidence/offline.stdout.log" -Pattern 'MECH_DAMAGE_OFFLINE_PASS' -Quiet)) { throw 'Damage runtime assertions did not complete.' }
+        if (-not (Select-String -LiteralPath "$evidence/offline.stdout.log" -Pattern 'MECH_GAS_OFFLINE_PASS' -Quiet)) { throw 'Real GAS runtime assertions did not complete.' }
     }
     if ($Mode -eq 'Multiplayer') {
         if (-not (Select-String -LiteralPath "$evidence/host.stdout.log" -Pattern 'MECH_SERVER_PASS' -Quiet)) { throw 'Server assertions did not complete.' }
         if (-not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_PASS' -Quiet)) { throw 'Client assertions did not complete.' }
+        if (-not (Select-String -LiteralPath "$evidence/host.stdout.log" -Pattern 'MECH_GAS_SERVER_PASS' -Quiet)) { throw 'Native server GAS assertions did not complete.' }
+        if (-not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_GAS_CLIENT_PASS' -Quiet)) { throw 'Native GAS mirror assertions did not complete.' }
         $observed = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_OBSERVED stage=')
-        $guards = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_GUARDS stage=\d rejected=8')
-        if ($observed.Count -ne 8 -or $guards.Count -ne 8) { throw 'Expected eight matched snapshots and eight client guard passes.' }
+        $guards = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_GUARDS stage=\d+ rejected=12')
+        if ($observed.Count -ne 12 -or $guards.Count -ne 12) { throw 'Expected twelve matched snapshots and twelve client guard passes.' }
     }
     if ($Mode -ne 'Import') {
         $cleanupMarkers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'MECH_CLEANUP objects=0')

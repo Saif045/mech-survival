@@ -121,9 +121,9 @@ workaround is needed. Use normal profile access only when a specific test
 reproduces the interactive desktop environment. No Steam A/B matrix or export
 is needed for this contract.
 
-The current scripted path extends the original body acceptance with structural
-damage checks; [the damage contract](mech-damage.md) describes its eight stages
-and client guards. The Task 01 results below preserve the original six-stage
+The current scripted path extends body/damage acceptance with canonical GAS
+checks; [the GAS contract](mech-gas.md) describes its twelve stages and guards.
+The damage contract preserves Task 02's eight-stage evidence. The Task 01 results below preserve the original six-stage
 acceptance evidence. Offline checks also
 exercise incompatible/duplicate installation, cross-body transfer, replacement
 return value, destroyed queries, empty detach and invalid condition rejection.

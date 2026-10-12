@@ -1,8 +1,9 @@
-[gd_scene load_steps=11 format=3 uid="uid://cxmekbody01"]
+[gd_scene load_steps=12 format=3 uid="uid://cxmekbody01"]
 
 [ext_resource type="Script" path="res://game/mech/NetworkMechBody.cs" id="1"]
 [ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
 [ext_resource type="Script" path="res://game/mech/MechPartDefinitionResource.cs" id="3"]
+[ext_resource type="Script" path="res://game/mech/gas/MechGasComponent.cs" id="4"]
 
 [sub_resource type="Resource" id="Core"]
 script = ExtResource("3")
@@ -51,3 +52,6 @@ script = ExtResource("1")
 Definitions = Array[ExtResource("3")]([SubResource("Core"), SubResource("Torso"), SubResource("Sensor"), SubResource("Arm"), SubResource("Leg"), SubResource("Power"), SubResource("Cooling")])
 
 [node name="NetworkObject" parent="." instance=ExtResource("2")]
+
+[node name="MechGas" type="Node" parent="."]
+script = ExtResource("4")

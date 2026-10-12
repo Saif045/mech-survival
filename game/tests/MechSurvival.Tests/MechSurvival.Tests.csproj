@@ -17,5 +17,6 @@
     <Compile Include="../../mech/PartInstance.cs" Link="Model/PartInstance.cs" />
     <Compile Include="../../mech/MechBody.cs" Link="Model/MechBody.cs" />
     <Compile Include="../../mech/MechBodyView.cs" Link="Model/MechBodyView.cs" />
+    <Compile Include="../../mech/gas/MechGasSnapshot.cs" Link="Model/MechGasSnapshot.cs" />
   </ItemGroup>
 </Project>

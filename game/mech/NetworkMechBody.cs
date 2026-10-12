@@ -4,6 +4,7 @@ using System.Linq;
 using Godot;
 using GameFactory.Networking.Objects;
 using GameFactory.Networking.Objects.Components.Replication;
+using MechSurvival.Mech.Gas;
 
 namespace MechSurvival.Mech;
 
@@ -13,6 +14,15 @@ public partial class NetworkMechBody : Node
     [Export] public Godot.Collections.Array<MechPartDefinitionResource> Definitions { get; set; } = [];
     [Export, Replicated(ReplicationMode.OnChange)]
     public string Composition { get; private set; } = "[]";
+    [Export, Replicated(ReplicationMode.OnChange)]
+    public string GasState { get; private set; } = default(MechGasSnapshot).Serialize();
+    public MechGasComponent Gas => GetNode<MechGasComponent>("MechGas");
+
+    internal void PublishGasSnapshot(MechGasSnapshot snapshot)
+    {
+        RequireServer();
+        GasState = snapshot.Serialize();
+    }
 
     private readonly MechBody _body = new();
     private readonly Dictionary<string, PartDefinition> _definitions = new(StringComparer.Ordinal);
@@ -124,5 +134,6 @@ public partial class NetworkMechBody : Node
         _body.Clear();
         View = new([]);
         Composition = "[]";
+        GasState = default(MechGasSnapshot).Serialize();
     }
 }
