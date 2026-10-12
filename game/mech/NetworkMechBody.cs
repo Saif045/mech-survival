@@ -92,6 +92,13 @@ public partial class NetworkMechBody : Node
         _body.Clear();
         Publish();
     }
+    public PartDamageResult ApplyDamage(MechSlot slot, float amount)
+    {
+        RequireServer();
+        var result = _body.ApplyDamage(slot, amount);
+        if (result.Changed) Publish();
+        return result;
+    }
     public InstalledPart? GetPart(MechSlot slot) => View.GetPart(slot);
     public bool HasPart(MechSlot slot) => View.HasPart(slot);
 

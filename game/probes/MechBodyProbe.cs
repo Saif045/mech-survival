@@ -28,6 +28,7 @@ public partial class MechBodyProbe : Control
     private int _ack;
     private int _pendingStage;
     private string _expected = "";
+    private string _expectedStructure = "";
     private bool _finished;
     private NetworkMechBody? _observed;
 
@@ -43,8 +44,13 @@ public partial class MechBodyProbe : Control
 
     private void BuildUi()
     {
-        var column = new VBoxContainer { Position = new Vector2(24, 24) };
-        AddChild(column);
+        var scroll = new ScrollContainer();
+        AddChild(scroll);
+        scroll.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        scroll.OffsetLeft = scroll.OffsetTop = 24;
+        scroll.OffsetRight = scroll.OffsetBottom = -24;
+        var column = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        scroll.AddChild(column);
         column.AddChild(new Label { Text = "Modular mech body probe — server owns composition and condition" });
         _status = new Label { Text = "Starting…" }; column.AddChild(_status);
         _slot = new OptionButton();
@@ -64,14 +70,22 @@ public partial class MechBodyProbe : Control
         AddButton(column, "Detach selected slot", () => NeedBody().DetachPart(SelectedSlot()));
         AddButton(column, "Set selected slot condition", () =>
             Require(NeedBody().SetCondition(SelectedSlot(), (float)_condition.Value), "Slot is empty."));
+        AddButton(column, "Damage selected part by 0.10", () => DamageSelected(0.10f));
+        AddButton(column, "Damage selected part by 0.25", () => DamageSelected(0.25f));
+        AddButton(column, "Destroy selected part", () => DamageSelected(1));
         AddButton(column, "Reset body", () => NeedBody().ResetBody());
         _slots = new VBoxContainer(); column.AddChild(_slots);
-        column.AddChild(new Label { Text = "Clients observe only. Host/client flags use local ENet port 24873.\nBase contributions are inspected; no movement, energy or heat effects exist." });
+        column.AddChild(new Label { Text = "Clients observe only. Host/client flags use local ENet port 24873.\nRaw/effective values describe physical structure. GAS, movement, energy and heat remain deferred." });
     }
 
     private MechSlot SelectedSlot() => (MechSlot)_slot.GetSelectedId();
     private NetworkMechBody NeedBody() => Body ?? throw new InvalidOperationException("No body spawned.");
     private PartInstance NewPart() => NeedBody().CreatePart(_model.GetItemText(_model.Selected), (float)_condition.Value);
+    private void DamageSelected(float amount)
+    {
+        var result = NeedBody().ApplyDamage(SelectedSlot(), amount);
+        Require(result.PartId is not null, "Slot is empty.");
+    }
     private void AddButton(VBoxContainer column, string text, Action action)
     {
         var button = new Button { Text = text };
@@ -103,10 +117,12 @@ public partial class MechBodyProbe : Control
         {
             try
             {
+                string structure = DescribeStructure(body.View);
+                Require(structure == _expectedStructure, "Client structural output differs from the server.");
                 AssertClientGuards(body);
                 _ack = _pendingStage;
-                GD.Print($"MECH_OBSERVED stage={_ack} composition={body.Composition}");
-                RpcId(1, MethodName.AckRpc, _ack, body.View.Serialize());
+                GD.Print($"MECH_OBSERVED stage={_ack} composition={body.Composition} structure={structure}");
+                RpcId(1, MethodName.AckRpc, _ack, body.View.Serialize(), structure);
             }
             catch (Exception error) { GD.PushError(error.ToString()); GetTree().Quit(1); }
         }
@@ -120,10 +136,12 @@ public partial class MechBodyProbe : Control
         {
             var part = view?.GetPart(slot);
             _slots.AddChild(new Label { Text = part is null ? $"{slot}: empty" :
-                $"{slot}: {part.Definition.Model} | {part.Id.Value.ToString()[..8]} | condition {part.Condition:0.00} | functioning {part.Functioning}" });
+                $"{slot}: {part.Definition.Model} | {part.Id.Value} | condition {part.Condition:0.00} | functioning {part.Functioning}\n" +
+                string.Join(" | ", Enum.GetValues<PartStat>().Select(stat =>
+                    $"{stat}: raw {part.GetContribution(stat):0.###}, effective {part.GetEffectiveContribution(stat):0.###}")) });
         }
         if (view is not null) _slots.AddChild(new Label { Text =
-            $"Mobility parts: {view.CountCapability(PartCapability.Mobility)} | base mobility: {view.SumContribution(PartStat.Mobility)} | cooling: {view.SumContribution(PartStat.CoolingCapacity)}" });
+            $"Functioning mobility parts: {view.CountCapability(PartCapability.Mobility)}\n{DescribeStructure(view)}" });
     }
 
     private NetworkMechBody Spawn() => _world.Spawn<NetworkMechBody>(_prefab, _ => { });
@@ -154,6 +172,7 @@ public partial class MechBodyProbe : Control
             if (args.Contains("--mech-offline-check"))
             {
                 RunOfflineChecks();
+                RunDamageOfflineChecks();
                 GD.Print("MECH_OFFLINE_PASS"); result = 0;
             }
             else if (_client)
@@ -173,30 +192,44 @@ public partial class MechBodyProbe : Control
                 var body = NeedBody();
                 var first = body.CreatePart("debug_leg");
                 Require(body.AttachPart(MechSlot.LeftLeg, first), "Initial attach failed.");
+                // Apply damage before the client starts: late synchronization must receive current damage.
+                body.ApplyDamage(MechSlot.LeftLeg, 0.65f);
                 await Until(() => _hello);
-                await Stage(1, body); // initial late-join snapshot
-                Require(body.SetCondition(MechSlot.LeftLeg, 0.25f), "Condition update failed.");
+                Near(0.35f, body.GetPart(MechSlot.LeftLeg)!.Condition, "Late-join damage setup failed.");
+                await Stage(1, body);
+                var partial = body.ApplyDamage(MechSlot.LeftLeg, 0.10f);
+                Require(partial.Changed && !partial.DestroyedByThisOperation, "Partial damage failed.");
+                Near(0.25f, body.GetPart(MechSlot.LeftLeg)!.Condition, "Partial condition mismatch.");
                 await Stage(2, body);
                 var replacement = body.CreatePart("debug_leg", 0.75f);
                 Require(body.ReplacePart(MechSlot.LeftLeg, replacement, out var previous) && ReferenceEquals(previous, first), "Replace mismatch.");
                 Require(previous!.InstalledSlot is null && first.Id != replacement.Id, "Replacement identity/slot mismatch.");
                 await Stage(3, body);
-                Require(body.SetCondition(MechSlot.LeftLeg, 0), "Destroyed condition failed.");
+                Require(body.ApplyDamage(MechSlot.LeftLeg, 1).DestroyedByThisOperation, "Destroying damage failed.");
                 Require(body.HasPart(MechSlot.LeftLeg), "Destroyed part vanished.");
                 await Stage(4, body);
                 Require(ReferenceEquals(body.DetachPart(MechSlot.LeftLeg), replacement), "Detach mismatch.");
                 await Stage(5, body);
-                body.AttachPart(MechSlot.Sensor, body.CreatePart("debug_sensor"));
-                body.ResetBody();
+                body.AttachPart(MechSlot.Sensor, body.CreatePart("debug_sensor", 0.2f));
+                body.AttachPart(MechSlot.LeftLeg, body.CreatePart("debug_leg", 0.4f));
                 await Stage(6, body);
-                Rpc(MethodName.FinishRpc);
-                await Until(() => Multiplayer.GetPeers().Length == 0);
+                body.ResetBody();
+                await Stage(7, body);
                 _world.Despawn(body.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").Id);
                 await Until(() => _world.Count == 0);
                 Require(body.View.Parts.Count == 0, "Despawn left stale server parts.");
                 var fresh = Spawn();
                 Require(fresh.View.Parts.Count == 0, "Fresh body retained prior state.");
-                GD.Print("MECH_SERVER_PASS stages=6 client_guards=true reset=true disconnect_clear=true fresh_body=true"); result = 0;
+                fresh.AttachPart(MechSlot.LeftLeg, fresh.CreatePart("debug_leg"));
+                Near(1, fresh.GetPart(MechSlot.LeftLeg)!.Condition, "Fresh part retained old damage.");
+                Near(1, fresh.View.SumEffectiveContribution(PartStat.Mobility), "Fresh structural output mismatch.");
+                await Stage(8, fresh);
+                Rpc(MethodName.FinishRpc);
+                await Until(() => Multiplayer.GetPeers().Length == 0);
+                _world.Despawn(fresh.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").Id);
+                await Until(() => _world.Count == 0);
+                Require(fresh.View.Parts.Count == 0, "Fresh body teardown left stale state.");
+                GD.Print("MECH_SERVER_PASS stages=8 client_guards=true damage=true late_join_damaged=true reset=true disconnect_clear=true fresh_body=true"); result = 0;
             }
         }
         catch (Exception error) { GD.PushError($"MECH_FAIL: {error}"); }
@@ -236,11 +269,68 @@ public partial class MechBodyProbe : Control
         Require(body.View.Parts.Count == 0 && otherBody.View.Parts.Count == 0, "Reset failed.");
     }
 
+    private void RunDamageOfflineChecks()
+    {
+        var body = NeedBody();
+        body.AttachPart(MechSlot.LeftLeg, body.CreatePart("debug_leg"));
+        body.AttachPart(MechSlot.RightLeg, body.CreatePart("debug_leg"));
+        var pristine = body.View;
+        var unrelated = pristine.GetPart(MechSlot.RightLeg);
+        Near(2, pristine.SumContribution(PartStat.Mobility), "Pristine raw output mismatch.");
+        Near(2, pristine.SumEffectiveContribution(PartStat.Mobility), "Pristine effective output mismatch.");
+        int publications = 0;
+        void OnChanged() => publications++;
+        body.Changed += OnChanged;
+        try
+        {
+            var partial = body.ApplyDamage(MechSlot.LeftLeg, 0.25f);
+            Require(partial.Changed && !partial.DestroyedByThisOperation, "Partial damage result mismatch.");
+            Near(0.75f, partial.NewCondition, "Partial damage condition mismatch.");
+            Near(2, body.View.SumContribution(PartStat.Mobility), "Damage changed raw output.");
+            Near(1.75f, body.View.SumEffectiveContribution(PartStat.Mobility), "Partial effective output mismatch.");
+            int beforeNoOps = publications;
+            string beforeComposition = body.Composition;
+            Require(!body.ApplyDamage(MechSlot.LeftLeg, 0).Changed, "Zero damage changed state.");
+            Require(!body.ApplyDamage(MechSlot.LeftLeg, float.Epsilon).Changed, "Unrepresentable damage changed state.");
+            Require(body.ApplyDamage(MechSlot.Sensor, 0.5f).PartId is null, "Empty damage returned a part.");
+            foreach (float invalid in new[] { -0.1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                try { body.ApplyDamage(MechSlot.LeftLeg, invalid); throw new Exception("Invalid damage accepted."); }
+                catch (ArgumentOutOfRangeException) { }
+            }
+            Require(publications == beforeNoOps && beforeComposition == body.Composition,
+                "No-op or invalid damage unnecessarily published state.");
+            var destroyed = body.ApplyDamage(MechSlot.LeftLeg, 1);
+            Require(destroyed.DestroyedByThisOperation && body.HasPart(MechSlot.LeftLeg), "Destroyed part vanished.");
+            Near(0, body.GetPart(MechSlot.LeftLeg)!.GetEffectiveContribution(PartStat.Mobility), "Destroyed effective output remains.");
+            Near(2, body.View.SumContribution(PartStat.Mobility), "Destroyed raw output changed.");
+            Near(1, body.View.SumEffectiveContribution(PartStat.Mobility), "Unrelated output changed.");
+            Require(body.View.CountCapability(PartCapability.Mobility) == 1, "Destroyed capability still available.");
+            Require(unrelated == body.GetPart(MechSlot.RightLeg), "Damage changed unrelated part.");
+            Near(1, pristine.GetPart(MechSlot.LeftLeg)!.Condition, "Captured view mutated retroactively.");
+            int beforeDestroyed = publications;
+            Require(!body.ApplyDamage(MechSlot.LeftLeg, 0.5f).Changed && publications == beforeDestroyed,
+                "Already destroyed part published damage.");
+            GD.Print("MECH_DAMAGE_OFFLINE_PASS raw_preserved=true effective_linear=true capability_loss=true unrelated_stable=true invalid_rejected=true no_op_publications=0 immutable_view=true");
+        }
+        finally { body.Changed -= OnChanged; }
+        body.ResetBody();
+    }
+
+    private static string DescribeStructure(MechBodyView view) =>
+        string.Join(";", Enum.GetValues<PartStat>().Select(stat => FormattableString.Invariant(
+            $"{stat}:raw={view.SumContribution(stat):R},effective={view.SumEffectiveContribution(stat):R}"))) +
+        "|capabilities=" + string.Join(",", Enum.GetValues<PartCapability>().Select(cap => $"{cap}:{view.CountCapability(cap)}"));
+
+    private static void Near(float expected, float actual, string message) =>
+        Require(MathF.Abs(expected - actual) <= 0.000001f, message);
+
     private async Task Stage(int stage, NetworkMechBody body)
     {
         string expected = body.Composition;
-        GD.Print($"MECH_PUBLISHED stage={stage} composition={expected}");
-        Rpc(MethodName.ExpectRpc, stage, expected);
+        string structure = DescribeStructure(body.View);
+        GD.Print($"MECH_PUBLISHED stage={stage} composition={expected} structure={structure}");
+        Rpc(MethodName.ExpectRpc, stage, expected, structure);
         await Until(() => _ack == stage);
         Require(body.Composition == expected, "Client produced a conflicting authoritative composition.");
     }
@@ -252,9 +342,10 @@ public partial class MechBodyProbe : Control
         Reject(() => body.ReplacePart(MechSlot.LeftLeg, part, out _));
         Reject(() => body.DetachPart(MechSlot.LeftLeg));
         Reject(() => body.SetCondition(MechSlot.LeftLeg, 1));
+        Reject(() => body.ApplyDamage(MechSlot.LeftLeg, 0.25f));
         Reject(() => body.ResetBody());
         Reject(() => _world.Spawn(_prefab));
-        GD.Print($"MECH_CLIENT_GUARDS stage={_pendingStage} rejected=7");
+        GD.Print($"MECH_CLIENT_GUARDS stage={_pendingStage} rejected=8");
     }
     private static void Reject(Action action)
     {
@@ -265,12 +356,13 @@ public partial class MechBodyProbe : Control
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void HelloRpc() { if (Multiplayer.IsServer() && Multiplayer.GetPeers().Contains(Multiplayer.GetRemoteSenderId())) _hello = true; }
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void ExpectRpc(int stage, string expected) { _pendingStage = stage; _expected = expected; }
+    private void ExpectRpc(int stage, string expected, string structure) { _pendingStage = stage; _expected = expected; _expectedStructure = structure; }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void AckRpc(int stage, string actual)
+    private void AckRpc(int stage, string actual, string structure)
     {
+        var body = Body;
         if (Multiplayer.IsServer() && Multiplayer.GetPeers().Contains(Multiplayer.GetRemoteSenderId()) &&
-            Body?.Composition == actual && stage == _ack + 1) _ack = stage;
+            body is not null && body.Composition == actual && DescribeStructure(body.View) == structure && stage == _ack + 1) _ack = stage;
     }
     [Rpc(MultiplayerApi.RpcMode.Authority, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void FinishRpc() => _finished = true;

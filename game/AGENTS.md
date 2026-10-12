@@ -19,7 +19,14 @@ Slot definitions are explicit; extend the enum, configured definition resources,
 and rules tests together. Presentation is labels in a game-owned probe. Do not
 add a generic inventory, ECS, stat bus, or persistence schema.
 
-Damage effects, intermediate-condition scaling, heat, energy consumption,
+Physical composition, condition, normalized damage and effective structural
+output belong to the mech structure model. Effective output is base contribution
+times condition; the raw contribution API keeps its accepted meaning. Gameplay
+attributes/effects/tags belong to the later Mech GAS layer; do not build duplicate
+attribute systems between them. Read [the damage contract](docs/mech-damage.md)
+for damage work.
+
+Damage formulas, repair, heat, energy consumption,
 movement degradation, survival, salvage, rescue, combat, extraction, and
 persistence remain undecided. Do not implement them as part of this foundation.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
@@ -39,9 +46,16 @@ Use the normal user profile only for a test explicitly reproducing the interacti
 desktop environment. The unrestricted normal-profile import passed; prior
 restricted-agent startup failures are environment failures, not project defects.
 
-Current validation: build, 20 product tests, and 73 foundation tests passed.
+Task 01 validation: build, 20 product tests, and 73 foundation tests passed.
 Offline `mech_offline_guard_20261012_024557` and local two-peer replication
 `mech_multiplayer_20261012_024607` passed, with zero owned processes after cleanup,
 profile deletion, APPDATA restoration and unchanged source/build. This body
 foundation is acceptance-proven on that scripted local Godot/ENet boundary;
 see the contract for exact assertions and preserved earlier failure evidence.
+
+Task 02 damage validation: build, 41 product cases and 73 foundation cases passed.
+Offline `mech_damage_offline_20261012_031922` and eight-stage two-peer
+`mech_damage_multiplayer_20261012_031935` passed, including damaged late join,
+effective-output matching, 64 client rejections, reset/despawn/fresh state and
+process/profile/port cleanup. See the damage contract for evidence. Keep this
+accepted physical layer separate from Task 03's future canonical Mech GAS state.

@@ -8,6 +8,8 @@ namespace MechSurvival.Mech;
 public sealed record InstalledPart(MechPartId Id, MechSlot Slot, PartDefinition Definition, float Condition)
 {
     public bool Functioning => Condition > 0;
+    public float GetContribution(PartStat stat) => Definition.Contributions.GetValueOrDefault(stat);
+    public float GetEffectiveContribution(PartStat stat) => GetContribution(stat) * Condition;
 }
 
 /// <summary>Immutable observation, safe to expose to clients and higher-level systems.</summary>
@@ -35,9 +37,13 @@ public sealed class MechBodyView
     public int CountCapability(PartCapability capability, bool functioningOnly = true) =>
         Parts.Count(p => (!functioningOnly || p.Functioning) && p.Definition.Capabilities.Contains(capability));
 
-    // Raw installed base contributions: no speculative condition scaling or gameplay effect.
+    // Preserve the accepted raw configured contribution query, including destroyed parts.
     public float SumContribution(PartStat stat) =>
         Parts.Sum(p => p.Definition.Contributions.GetValueOrDefault(stat));
+
+    // Physical structure only. Canonical gameplay attributes belong to the later Mech GAS layer.
+    public float SumEffectiveContribution(PartStat stat) =>
+        Parts.Sum(p => p.GetEffectiveContribution(stat));
 
     public string Serialize() => JsonSerializer.Serialize(Parts.Select(p =>
         new PartState(p.Id.Value, p.Slot, p.Definition.Model, p.Condition)).ToArray());

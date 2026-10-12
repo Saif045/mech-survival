@@ -4,6 +4,15 @@ using System.Linq;
 
 namespace MechSurvival.Mech;
 
+/// <summary>Damage in normalized condition space. A null ID denotes an empty slot.</summary>
+public readonly record struct PartDamageResult(MechPartId? PartId, MechSlot Slot,
+    float PreviousCondition, float NewCondition, float RequestedDamage)
+{
+    public float AppliedDamage => PreviousCondition - NewCondition;
+    public bool Changed => NewCondition != PreviousCondition;
+    public bool DestroyedByThisOperation => PreviousCondition > 0 && NewCondition == 0;
+}
+
 /// <summary>Engine-independent rules, called only by authoritative gameplay at runtime.</summary>
 public sealed class MechBody
 {
@@ -73,6 +82,18 @@ public sealed class MechBody
         if (part is null) return false;
         part.SetCondition(condition);
         return true;
+    }
+
+    public PartDamageResult ApplyDamage(MechSlot slot, float amount)
+    {
+        if (!float.IsFinite(amount) || amount < 0)
+            throw new ArgumentOutOfRangeException(nameof(amount), "Damage must be finite and nonnegative.");
+        var part = GetPart(slot);
+        if (part is null) return new(null, slot, 0, 0, amount);
+        float previous = part.Condition;
+        float next = MathF.Max(0, previous - amount);
+        if (next != previous) part.SetCondition(next);
+        return new(part.Id, slot, previous, next, amount);
     }
 
     public void Clear()

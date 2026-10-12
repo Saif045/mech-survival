@@ -60,8 +60,10 @@ check both explicit leg slots and their `Functioning` fields.
 `CountCapability` defaults to functioning parts and can also count all installed
 parts. `SumContribution` sums raw base properties of all installed parts,
 including destroyed ones, in slot order. Each part's own contributions are also
-available. Intermediate condition does not scale stats; later systems must make
-that decision explicitly. Previously captured views remain immutable.
+available. Task 02 adds distinct effective structural queries: base contribution
+multiplied by condition, per part and for the body. `SumContribution` keeps its
+raw meaning. These are physical projections, not gameplay attributes. Previously
+captured views remain immutable. See [the damage contract](mech-damage.md).
 
 ## Replication and cleanup
 
@@ -119,13 +121,10 @@ workaround is needed. Use normal profile access only when a specific test
 reproduces the interactive desktop environment. No Steam A/B matrix or export
 is needed for this contract.
 
-The scripted multiplayer path checks six identical server/client projections:
-late-join attached leg, condition 0.25, replacement with a new ID at 0.75,
-destroyed-but-installed condition 0, detach, and reset. At each stage the client
-tries creation, attach, replace, detach, condition mutation, reset and world
-spawn; all seven must reject, and the server composition must stay unchanged.
-Finally the client disconnects and clears its world, the server despawns and
-clears the old body, and a fresh server body must be empty. Offline checks also
+The current scripted path extends the original body acceptance with structural
+damage checks; [the damage contract](mech-damage.md) describes its eight stages
+and client guards. The Task 01 results below preserve the original six-stage
+acceptance evidence. Offline checks also
 exercise incompatible/duplicate installation, cross-body transfer, replacement
 return value, destroyed queries, empty detach and invalid condition rejection.
 

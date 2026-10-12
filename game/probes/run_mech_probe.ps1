@@ -31,9 +31,10 @@ function Get-FrozenState {
 }
 
 # DEFINE: import <=60s; offline <=40s; host-ready <=10s, two-peer scenario <=40s.
-# Assertions: scene/resource loading and rules; late join identity/condition;
-# server attach, condition, replace, destroy, detach, reset; seven rejected
-# client mutations per stage; disconnect, despawn and fresh-body state cleanup.
+# Assertions: scene/resource loading and rules; late join damaged identity/condition;
+# server damage, raw/effective output, capabilities, no-op publication, replace,
+# destroy, detach, reset; eight rejected client mutations per stage; disconnect,
+# despawn, fresh-body state cleanup and released test port.
 # Participants are test-owned local Godot processes only. No VM or Steam session.
 @{ mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/mech_body_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
@@ -86,13 +87,14 @@ try {
     if ($errors.Count) { throw "Engine/runtime errors: $($errors.Count). Inspect preserved logs." }
     if ($Mode -eq 'Offline') {
         if (-not (Select-String -LiteralPath "$evidence/offline.stdout.log" -Pattern 'MECH_OFFLINE_PASS' -Quiet)) { throw 'Offline assertions did not complete.' }
+        if (-not (Select-String -LiteralPath "$evidence/offline.stdout.log" -Pattern 'MECH_DAMAGE_OFFLINE_PASS' -Quiet)) { throw 'Damage runtime assertions did not complete.' }
     }
     if ($Mode -eq 'Multiplayer') {
         if (-not (Select-String -LiteralPath "$evidence/host.stdout.log" -Pattern 'MECH_SERVER_PASS' -Quiet)) { throw 'Server assertions did not complete.' }
         if (-not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_PASS' -Quiet)) { throw 'Client assertions did not complete.' }
         $observed = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_OBSERVED stage=')
-        $guards = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_GUARDS stage=\d rejected=7')
-        if ($observed.Count -ne 6 -or $guards.Count -ne 6) { throw 'Expected six matched snapshots and six client guard passes.' }
+        $guards = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'MECH_CLIENT_GUARDS stage=\d rejected=8')
+        if ($observed.Count -ne 8 -or $guards.Count -ne 8) { throw 'Expected eight matched snapshots and eight client guard passes.' }
     }
     if ($Mode -ne 'Import') {
         $cleanupMarkers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'MECH_CLEANUP objects=0')
@@ -111,6 +113,11 @@ try {
     $env:APPDATA = $previousAppData
     $remaining = @($owned | Where-Object { Get-Process -Id $_.Id -ErrorAction SilentlyContinue }).Count
     if ($remaining -gt 0) { $result = 'FAIL'; $reason += ' Test process cleanup failed.' }
+    $portReleased = $null
+    if ($Mode -eq 'Multiplayer') {
+        $portReleased = @(Get-NetUDPEndpoint -LocalPort 24873 -ErrorAction SilentlyContinue).Count -eq 0
+        if (-not $portReleased) { $result = 'FAIL'; $reason += ' Test port remains occupied.' }
+    }
     $profileRemoved = $true
     try {
         if (Test-Path -LiteralPath $profile) {
@@ -132,7 +139,7 @@ try {
     @{ result = $result; deepest_stage = $stage; reason = $reason; cleanup_processes = $remaining;
         pids = @($owned.Id); vm_cleanup = 'not applicable: no VM processes launched'; artifacts = $evidence;
         source_build_unchanged = $unchanged; profile_removed = $profileRemoved;
-        appdata_restored = ($env:APPDATA -eq $previousAppData) } |
+        appdata_restored = ($env:APPDATA -eq $previousAppData); port_released = $portReleased } |
         ConvertTo-Json | Set-Content -LiteralPath "$evidence/result.json"
     Write-Output "MECH_PROBE_RESULT=$result mode=$Mode cleanup_live=$remaining evidence=$evidence"
 }
