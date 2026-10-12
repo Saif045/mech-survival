@@ -46,10 +46,23 @@ The visible prefab lists are:
 
 InputMap supplies move_left/right/forward/backward and jump. Jump presses queue
 until one recorded Netfox input tick. Simulation reads recorded input exclusively
-in `_rollback_tick`, applies fixed development speed 6, gravity 18 and jump speed 5,
+in `_rollback_tick`, applies canonical GAS-derived horizontal speed, gravity 18 and jump speed 5,
 and brackets move_and_slide with NetworkTime.physics_factor. Capsule collision
-provides floor/environment contact. Mobility, part condition and resource tags do
-not affect locomotion yet.
+provides floor/environment contact. PlayableMech exposes getter-only GasMobility,
+GasHasMobility and GasMoveSpeed from the canonical MechGasComponent snapshot.
+The initial tunable balance is MoveSpeed = Mobility * 3, gated to zero when
+HasMobility is false, even with positive numeric Mobility. Two pristine debug
+legs therefore retain speed 6. MobilityMovementPolicy validates finite,
+nonnegative, non-overflowing values; it is a mapping, not authoritative storage.
+Simulation reads the typed speed, never JSON, physical slots or condition.
+Client prediction reads the server's mirrored snapshot. GAS/condition/tags stay
+outside rollback, are never restored/mutated by simulation, and the existing
+physical state/input lists remain unchanged. Current ordinary projection may
+change the result of replay, as in the accepted factory GAS/Netfox integration;
+this does not introduce historical GAS or tick-scheduled stat transitions.
+Jump eligibility/height/gravity are unchanged, including at zero horizontal
+capability. Energy, Heat, PowerDepleted and ThermalCritical do not affect motion;
+accepted idle/cooling simulation continues with no movement cost or heat input.
 
 Only deterministic latency-sensitive physical inputs belong in Netfox rollback.
 Discrete gameplay actions use semantic InputMap actions and mechanic-specific
@@ -79,6 +92,13 @@ nineteen rejected client mutations per body at seven snapshots, and two rounds
 with fresh objects/parts/resources and Netfox registration teardown. Headless
 interpolation is explicitly enabled by the probe. Resource timers pause only in
 the probe after spawn so exact canonical snapshots can be compared.
+Task 06 extends this same path with ten controlled Mobility cases, twenty
+additional matched client snapshots and ten client-owner displacement samples.
+Each physical measurement drives one semantic action for 24 Netfox ticks
+(0.8 seconds at the current 30 Hz). Moving tolerance is max(0.3, 10% expected
+distance); stopping tolerance is 0.05 world units. Every matched snapshot checks
+canonical native GAS, read-only movement projections, authority and presentation.
+The scenario remains bounded to 90 seconds; import remains bounded to 60 seconds.
 
 Runners preserve logs/contracts/source and assembly hashes under artifacts,
 enforce bounded readiness/scenarios, use disposable APPDATA, restore/delete the
@@ -86,7 +106,7 @@ profile, verify zero owned processes and released ports. Runtime failures freeze
 the attempt; investigate one hypothesis and obtain retry authorization before
 changing/rerunning acceptance.
 
-Functional Mobility integration, movement resource costs, field parts, repair,
+Movement resource costs, field parts, repair,
 hazards, death/core transfer, extraction, persistence and final presentation,
 camera, animation/UI/audio remain deferred.
 
@@ -140,3 +160,58 @@ two-peer retry (`..._02`) passed. Gameplay source stayed unchanged; previously
 passing unit, routing, existing mech and offline runs were not repeated for this
 probe-only teardown fix. The earlier pre-v0.1.2 runs and routing-blocker record
 remain preserved under their original IDs.
+
+## Task 06 acceptance — October 12, 2026
+
+Accepted: horizontal locomotion consumes final canonical GAS Mobility through
+the getter-only playable projection and the tunable Mobility * 3 conversion.
+Build passed with zero warnings/errors. All 80 product tests (13 new pure mapping
+cases) and all 73 foundation tests passed with zero failures/skips. Diff whitespace
+validation passed. No factory, addon, foundation test or upstream tool edits.
+
+The unchanged existing mech offline and twelve-stage multiplayer regressions were
+rerun because the movement consumer depends on accepted canonical GAS/modifier
+behavior. They retain damage, resources, additive-effect coexistence, late sync,
+228 client rejections and cleanup coverage. No prior regression was replaced.
+
+| Run ID | Result / preserved evidence |
+| --- | --- |
+| `mobility_import_20261012_01` | PASS; `artifacts/playable_mech/mobility_import_20261012_01/` |
+| `mech_mobility_offline_20261012_01` | PASS; `artifacts/mech_body/mech_mobility_offline_20261012_01/` |
+| `mech_mobility_multiplayer_20261012_01` | PASS; `artifacts/mech_body/mech_mobility_multiplayer_20261012_01/` |
+| `mobility_offline_20261012_01` | PASS; `artifacts/playable_mech/mobility_offline_20261012_01/` |
+| `mobility_multiplayer_20261012_01` | PASS; `artifacts/playable_mech/mobility_multiplayer_20261012_01/` |
+
+All runtime runs reached complete, with no failed stage or retry. Result records
+verify frozen source/build, zero owned processes, restored APPDATA, deleted
+disposable profiles and released multiplayer ports. No VM or Steam session test
+was needed. Existing configured-scene assertions and two-round cleanup still pass.
+
+| Setup | Structural Mobility | Final GAS Mobility | HasMobility | Speed | Expected displacement / 24 ticks |
+| --- | ---: | ---: | --- | ---: | ---: |
+| Pristine | 2 | 2 | true | 6 | 4.8 |
+| Left leg half damaged | 1.5 | 1.5 | true | 4.5 | 3.6 |
+| Left leg destroyed | 1 | 1 | true | 3 | 2.4 |
+| Existing +0.5 native modifier | 1 | 1.5 | true | 4.5 | 3.6 |
+| Right leg half damaged, modifier retained | 0.5 | 1 | true | 3 | 2.4 |
+| Modifier removed | 0.5 | 0.5 | true | 1.5 | 1.2 |
+| Modifier reapplied | 0.5 | 1 | true | 3 | 2.4 |
+| Both legs destroyed, modifier retained | 0 | 0.5 | false | 0 | 0 |
+| Modifier removed, zero baseline | 0 | 0 | false | 0 | 0 |
+| Authoritative probe setup restores pristine conditions | 2 | 2 | true | 6 | 4.8 |
+
+Offline and both peer-owned bodies matched all ten values. Server-observed client
+displacement and client-predicted displacement converged; measured moving errors
+were below 0.00004 units, with zero displacement in both stop cases. Owner input
+did not move the other body. The client matched all 27 canonical/presentation
+snapshots (7 baseline + 20 Mobility) and rejected 19 mutation paths for each of
+two bodies at every snapshot: 1,026 rejections. Projection getters have no setters.
+
+Healthy and zero-capability host jumps retained one recorded edge and about
+0.7668 rise, using unchanged jump/gravity rules. Paused probe resource values stayed
+unchanged during movement; the existing regression separately proves normal
+automatic resource simulation. Restored setup and a fresh second round returned
+to pristine Mobility/speed, new part/object identities and full resource setup.
+Structural condition setup is probe-only, not a repair mechanic. No movement
+Energy cost, movement Heat, resource-tag penalty, sprint/dash, jump scaling,
+hazard, field-part, repair, core/death or presentation mechanic was introduced.

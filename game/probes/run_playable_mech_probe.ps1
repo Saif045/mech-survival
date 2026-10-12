@@ -30,16 +30,19 @@ function Get-FrozenState {
     [pscustomobject]@{ path = '.godot/mono/temp/bin/Debug/GameFactory.dll'; sha256 = (Get-FileHash -LiteralPath $assembly -Algorithm SHA256).Hash }
 }
 
-# DEFINE: import <=60s; offline <=40s; host-ready <=10s, two-peer scenario <=60s.
+# DEFINE: import <=60s; offline/two-peer <=90s; host-ready <=10s.
 # Assertions: configured normal shell and PlayerScene; lifecycle/spawn positions;
 # complete loadouts and native GAS/resource initialization; split authority/cameras;
 # owner-isolated bidirectional Netfox motion and queued-edge physical jumps;
 # remote state/presentation convergence and nineteen client guards per body;
 # two rounds with fresh parts/resources/monotonic objects and Netfox teardown.
+# Ten controlled 24-tick Mobility measurements: pristine, partial damage,
+# one leg, native +0.5 modifier, damage with modifier retained, capability gate
+# with positive modifier value, zero and restored setup. Resources/jump unchanged.
 # Participants are test-owned local Godot processes only. No VM or Steam session.
 @{ mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
-    timeout_seconds = 60; transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
+    timeout_seconds = 90; transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
     profile = $profile; profile_policy = 'Disposable APPDATA, restored and deleted after each run. Request command-level approval if sandbox access is insufficient.' } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/contract.json"
 
@@ -77,7 +80,7 @@ try {
         $stage = 'host_ready'
         $owned += Start-Probe 'client' @('--playable-client')
     }
-    $timeout = if ($Mode -eq 'Import') { 60000 } else { 60000 }
+    $timeout = if ($Mode -eq 'Import') { 60000 } else { 90000 }
     foreach ($process in $owned) {
         if (-not $process.WaitForExit($timeout)) { throw "Process $($process.Id) exceeded bounded timeout." }
         $process.Refresh()
@@ -96,6 +99,12 @@ try {
         if ($observed.Count -ne 7) { throw 'Expected seven canonical/converged snapshots with client guards.' }
     }
     if ($Mode -ne 'Import') {
+        if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'MOBILITY_ACCEPTANCE_PASS cases=10' -Quiet)) { throw 'Mobility acceptance did not complete.' }
+        if ($Mode -eq 'Multiplayer') {
+            $mobility = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern '^MOBILITY_OBSERVED stage=')
+            $ownerMotion = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern '^MOBILITY_MOVEMENT_PASS case=')
+            if ($mobility.Count -ne 20 -or $ownerMotion.Count -ne 10) { throw 'Expected twenty canonical Mobility observations and ten client-owner measurements.' }
+        }
         $cleanupMarkers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'PLAYABLE_CLEANUP objects=0')
         if ($cleanupMarkers.Count -ne $owned.Count) { throw 'World cleanup assertions are missing.' }
     }

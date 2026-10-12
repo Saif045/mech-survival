@@ -41,7 +41,7 @@ initialization is explicit, never an installation/repair refill. See
 [the resource contract](docs/energy-heat.md). Keep resources outside rollback.
 
 Damage formulas, repair, environment and extra activity consumption,
-movement degradation, survival, salvage, rescue, combat, extraction, and
+survival, salvage, rescue, combat, extraction, and
 persistence remain undecided. Do not implement them as part of this foundation.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
 problem with the routed upstream repair workflow.
@@ -55,8 +55,12 @@ empty; complete loadout and explicit Energy initialization are playable policy.
 Only deterministic latency-sensitive physical inputs belong in Netfox rollback.
 Discrete actions use semantic InputMap actions and mechanic-specific validated
 server requests; never read physical keys or place arbitrary buttons in rollback.
-Keep fixed development locomotion separate from Mobility/resources until an
-explicit gameplay task connects them. Keep camera/color outside rollback.
+Playable locomotion consumes final canonical Mech GAS Mobility. Physical parts
+determine structural baseline; GAS owns final gameplay value; Netfox owns only
+physical movement. Current tunable conversion is MoveSpeed = Mobility * 3, hard
+gated to zero by HasMobility. Keep GAS/condition/capability out of rollback;
+movement must not independently calculate leg output or mutate GAS. Jump and
+resource costs remain separate. Keep camera/color outside rollback.
 
 Build and test commands are in the contract. Every runtime attempt follows
 `docs/testing-protocol.md` and `docs/runtime-test-operator.md`. After a terminal

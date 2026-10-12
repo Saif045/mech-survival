@@ -10,6 +10,11 @@ public partial class PlayableMech : NetworkMechBody, INetworkSpawnInitializable
 {
     public Vector3 InitialSpawnPosition { get; private set; }
     public bool InitializedBeforeTree { get; private set; }
+    // Read-only views of the already canonical/mirrored snapshot. No new state,
+    // replication fields, structural calculation or rollback writes to GAS.
+    public float GasMobility => Gas.Snapshot.Mobility;
+    public bool GasHasMobility => Gas.Snapshot.HasMobility;
+    public float GasMoveSpeed => MobilityMovementPolicy.Speed(GasMobility, GasHasMobility);
 
     public void ApplyNetworkSpawnData(Variant data)
     {

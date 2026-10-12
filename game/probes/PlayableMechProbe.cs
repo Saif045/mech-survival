@@ -85,7 +85,7 @@ public partial class PlayableMechProbe : Node
                 _gameplay.Start();
                 await Until(() => _connected);
                 RpcId(1, MethodName.HelloRpc);
-                await Until(() => _finished, 45000);
+                await Until(() => _finished, 90000);
                 GD.Print("PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
             }
             else
@@ -124,6 +124,7 @@ public partial class PlayableMechProbe : Node
                     await Settle();
                     await Stage(7, "client_jump_observed");
                 }
+                await MobilityAcceptance(offline);
                 RememberRound();
                 if (!offline) RpcId(_remote, MethodName.CommandRpc, 8, "reset", "");
                 await ResetAndCheck();
@@ -230,6 +231,86 @@ public partial class PlayableMechProbe : Node
         await Ticks(24);
         Input.ActionRelease(action);
     }
+    private async Task MobilityAcceptance(bool offline)
+    {
+        // All mutations are authoritative probe setup, not repair/gameplay RPCs.
+        string[] labels = ["pristine", "partial", "one_leg", "modifier", "modifier_damage", "modifier_removed", "modifier_reapplied", "modifier_gate", "zero", "restored"];
+        float[] mobility = [2, 1.5f, 1, 1.5f, 1, 0.5f, 1, 0.5f, 0, 2];
+        float[] structural = [2, 1.5f, 1, 1, 0.5f, 0.5f, 0.5f, 0, 0, 2];
+        float[] speed = [6, 4.5f, 3, 4.5f, 3, 1.5f, 3, 0, 0, 6];
+        for (int i = 0; i < labels.Length; i++)
+        {
+            foreach (var body in Bodies)
+            {
+                switch (i)
+                {
+                    case 1: body.ApplyDamage(MechSlot.LeftLeg, 0.5f); break;
+                    case 2: body.ApplyDamage(MechSlot.LeftLeg, 0.5f); break;
+                    case 3: body.Gas.SetDevelopmentModifier(true); break;
+                    case 4: body.ApplyDamage(MechSlot.RightLeg, 0.5f); break;
+                    case 5: body.Gas.SetDevelopmentModifier(false); break;
+                    case 6: body.Gas.SetDevelopmentModifier(true); break;
+                    case 7: body.ApplyDamage(MechSlot.RightLeg, 0.5f); break;
+                    case 8: body.Gas.SetDevelopmentModifier(false); break;
+                    case 9:
+                        body.SetCondition(MechSlot.LeftLeg, 1);
+                        body.SetCondition(MechSlot.RightLeg, 1);
+                        break;
+                }
+                Require(body.View.SumEffectiveContribution(PartStat.Mobility) == structural[i] &&
+                    body.GasMobility == mobility[i] && body.GasHasMobility == (i != 7 && i != 8) &&
+                    body.GasMoveSpeed == speed[i] && body.Gas.HasDevelopmentModifier == (i == 3 || i == 4 || i == 6 || i == 7),
+                    $"{labels[i]} canonical Mobility/modifier/capability mismatch.");
+            }
+            await Settle();
+            if (!offline) await Stage(20 + i * 3, "mobility_state_" + labels[i]);
+            Vector3[] before = Bodies.Select(b => b.Position).ToArray();
+            await MeasureOwner(labels[i], "move_left");
+            await Settle();
+            CheckDisplacement(Bodies[0], before[0], speed[i], labels[i], "server_host");
+            if (!offline)
+            {
+                Require(PlanarDistance(before[1], Bodies[1].Position) < 0.15f, "Host Mobility input drove remote owner.");
+                before = Bodies.Select(b => b.Position).ToArray();
+                RpcId(_remote, MethodName.CommandRpc, 21 + i * 3, "mobility_move_" + labels[i], "");
+                await Until(() => _ack == 21 + i * 3);
+                await Ticks(12);
+                await Settle();
+                CheckDisplacement(Bodies[1], before[1], speed[i], labels[i], "server_client");
+                Require(PlanarDistance(before[0], Bodies[0].Position) < 0.15f, "Client Mobility input drove host owner.");
+                await Stage(22 + i * 3, "mobility_result_" + labels[i]);
+            }
+            if (i == 7)
+            {
+                // No leg/jump capability rule is introduced. Numeric Mobility
+                // remains positive from the native modifier while the hard gate
+                // stops horizontal motion; grounded jump still works unchanged.
+                await JumpOwner(); await Settle();
+            }
+        }
+        GD.Print($"MOBILITY_ACCEPTANCE_PASS cases=10 peers={(offline ? 1 : 2)} damage=true modifier_preserved=true hard_gate=true resources_unchanged=true jump_unchanged=true");
+    }
+    private async Task MeasureOwner(string label, string action)
+    {
+        var body = Bodies.Single(b => b.GetNode("Input").IsMultiplayerAuthority());
+        Vector3 before = body.Position;
+        var resources = body.Gas.ReadSnapshot();
+        await DriveOwner(action);
+        await Settle();
+        CheckDisplacement(body, before, body.GasMoveSpeed, label, "owner_prediction");
+        Require(body.Gas.ReadSnapshot().Energy == resources.Energy && body.Gas.ReadSnapshot().Heat == resources.Heat,
+            "Movement changed Energy/Heat while resource timers were paused.");
+    }
+    private void CheckDisplacement(PlayableMech body, Vector3 before, float speed, string label, string observation)
+    {
+        float distance = PlanarDistance(before, body.Position);
+        float duration = 24 * TimeNode.Get("ticktime").AsSingle();
+        float expected = speed * duration;
+        float tolerance = speed == 0 ? 0.05f : Math.Max(0.3f, expected * 0.1f);
+        Require(Math.Abs(distance - expected) <= tolerance,
+            $"{label}/{observation}: displacement {distance} differs from expected {expected} (speed {speed}).");
+        GD.Print($"MOBILITY_MOVEMENT_PASS case={label} observation={observation} owner={Object(body).OwnerPeerId} mobility={body.GasMobility} capability={body.GasHasMobility} speed={speed} ticks=24 seconds={duration} distance={distance} expected={expected} tolerance={tolerance}");
+    }
     private async Task JumpOwner()
     {
         var body = Bodies.Single(b => b.GetNode("Input").IsMultiplayerAuthority());
@@ -240,6 +321,7 @@ public partial class PlayableMechProbe : Node
         // Held semantic action must not record repeated pulses.
         await Ticks(8); Input.ActionRelease("jump");
         Require(body.GetNode("Input").Get("recorded_jump_edges").AsInt32() == previous + 1, "Jump was not one recorded input edge.");
+        Require(body.Position.Y - y > 0.55f && body.Position.Y - y < 0.95f, "Jump trajectory changed.");
         GD.Print($"PLAYABLE_JUMP_PASS owner={Object(body).OwnerPeerId} recorded_edges=1 rise={body.Position.Y - y}");
     }
     private async Task Settle()
@@ -267,6 +349,7 @@ public partial class PlayableMechProbe : Node
         try
         {
             if (command == "reset") { RememberRound(); await ResetAndCheck(); }
+            else if (command.StartsWith("mobility_move_")) await MeasureOwner(command[14..], "move_forward");
             else if (command == "client_move") await DriveOwner("move_forward");
             else if (command == "client_jump") await JumpOwner();
             else
@@ -286,7 +369,8 @@ public partial class PlayableMechProbe : Node
                 }
                 if (command == "host_motion") _hostPeak = Bodies[0].Position.Y;
                 if (command == "host_jump") Require(_hostPeak > Bodies[0].Position.Y + 0.2f, "Client did not observe physical host jump.");
-                GD.Print($"PLAYABLE_OBSERVED stage={stage} command={command} converged=true native_gas=true camera=true guards_per_body=19");
+                string marker = command.StartsWith("mobility_") ? "MOBILITY_OBSERVED" : "PLAYABLE_OBSERVED";
+                GD.Print($"{marker} stage={stage} command={command} converged=true native_gas=true camera=true guards_per_body=19");
             }
             RpcId(1, MethodName.AckRpc, stage, "");
         }
@@ -335,6 +419,8 @@ public partial class PlayableMechProbe : Node
             () => body.Gas.SetResourcesForProbe(new(1, 50)), () => body.Gas.SetExternalHeatLoad(100), () => body.Gas.AdvanceResources(1),
             () => body.Gas.SetResourceSimulationEnabled(true), () => body.Gas.ConfigureResources(new(100, 1, 1)), () => body.Gas.ResetResourceState()];
         string before = body.Composition + body.GasState;
+        foreach (string property in new[] { nameof(PlayableMech.GasMobility), nameof(PlayableMech.GasHasMobility), nameof(PlayableMech.GasMoveSpeed) })
+            Require(typeof(PlayableMech).GetProperty(property)!.SetMethod is null, "Movement projection has a writable API.");
         foreach (var mutation in mutations)
         {
             bool rejected = false;
