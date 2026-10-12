@@ -2,7 +2,8 @@
 
 Each `mech_body.tscn` owns one `MechGasComponent`, whose adapter/bridge constructs
 the real vendored GodotGAS `AbilitySystemComponent` with a mech-only AttributeSet.
-It defines exactly Mobility, PowerCapacity and CoolingCapacity. It does not attach
+Task 03 defined Mobility, PowerCapacity and CoolingCapacity; Task 04 extends it
+with [native Energy/Heat resources](energy-heat.md). It does not attach
 the player-specific factory GAS component or import Health, Stamina, movement,
 Downed/Dead or respawn semantics.
 
@@ -48,8 +49,8 @@ completed result synchronously. The server never mirrors/replays its own snapsho
 
 `MechGasSnapshot` is an immutable, validated aggregate. `NetworkMechBody.GasState`
 is a single spawn/on-change replicated JSON property using the existing
-ReplicationComponent/MultiplayerSynchronizer. Its three values and four tag flags
-travel atomically, separately from physical `Composition`.
+ReplicationComponent/MultiplayerSynchronizer. Values and tag flags (extended with
+Task 04 resources) travel atomically, separately from physical `Composition`.
 
 Client bodies construct a real local ASC, apply only the authoritative GAS snapshot
 through native instant attribute overrides and tag reference updates, then capture
@@ -131,9 +132,8 @@ This accepts the real-GodotGAS mech composition on the focused local two-peer
 boundary. Task 04 should consume these canonical values and add explicit resource
 policies rather than duplicate physical or GAS state.
 
-## Deferred
+## Later consumers
 
-Energy/Heat, resources, cooling simulation, movement consumption, repair, salvage,
+Task 04's resource arithmetic is documented separately. Movement consumption, repair, salvage,
 hazards, core death/rescue, persistence, combat, final UI/VFX/audio remain absent.
-Task 04 can consume canonical GAS PowerCapacity/CoolingCapacity and add deliberate
-resource/effect policies without moving physical condition into GAS.
+Physical condition stays in structure; current resources belong to the ASC.

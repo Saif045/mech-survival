@@ -31,10 +31,16 @@ belong to the game-owned Mech GAS composition. Clients consume the replicated
 server GAS result and its local ASC mirror, not independently derive canonical
 values from physical output. Keep interop inside the mech adapter/bridge; do not
 attach the player-specific factory GAS component to mechs. See
-[the Mech GAS contract](docs/mech-gas.md). Energy/Heat are the next layer, deferred
-until explicitly requested.
+[the Mech GAS contract](docs/mech-gas.md).
 
-Damage formulas, repair, heat, energy consumption,
+Energy and Heat are canonical server-owned Mech GAS resources. PowerCapacity
+bounds Energy; CoolingCapacity determines cooling rate. Environment/activity
+systems provide load inputs, not resource state. Current Energy stays mech-level
+until field-part gameplay supplies evidence for per-part stored charge. Fresh
+initialization is explicit, never an installation/repair refill. See
+[the resource contract](docs/energy-heat.md). Keep resources outside rollback.
+
+Damage formulas, repair, environment and extra activity consumption,
 movement degradation, survival, salvage, rescue, combat, extraction, and
 persistence remain undecided. Do not implement them as part of this foundation.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
@@ -75,4 +81,5 @@ canonical snapshots/mirrors, additive effect coexistence, damaged/modified late
 sync, native tags, 144 client rejections and full cleanup. Earlier probe teardown
 and log-parser failures are preserved in the GAS contract. Source-owned baseline
 effect replacement must preserve unrelated native effects; do not reset the ASC
-when physical structure changes. Keep Energy/Heat deferred until Task 04.
+when physical structure changes. Resource updates must likewise preserve
+unrelated native effects. The resource contract records Task 04 acceptance.

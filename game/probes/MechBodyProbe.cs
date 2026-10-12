@@ -77,9 +77,18 @@ public partial class MechBodyProbe : Control
         AddButton(column, "Destroy selected part", () => DamageSelected(1));
         AddButton(column, "Development only: add GAS Mobility +0.5", () => NeedBody().Gas.SetDevelopmentModifier(true));
         AddButton(column, "Remove development GAS modifier", () => NeedBody().Gas.SetDevelopmentModifier(false));
+        AddButton(column, "Initialize Energy full once (fresh body)", () => Require(NeedBody().Gas.InitializeEnergyFull(), "Fresh Energy initialization already consumed."));
+        AddButton(column, "External heat load: 0 / second", () => NeedBody().Gas.SetExternalHeatLoad(0));
+        AddButton(column, "External heat load: 8 / second", () => NeedBody().Gas.SetExternalHeatLoad(8));
+        AddButton(column, "External heat load: 100 / second", () => NeedBody().Gas.SetExternalHeatLoad(100));
+        AddButton(column, "Advance resource simulation 0.25 seconds", () => NeedBody().Gas.AdvanceResources(0.25f));
+        AddButton(column, "Run server resource simulation", () => NeedBody().Gas.SetResourceSimulationEnabled(true));
+        AddButton(column, "Pause server resource simulation", () => NeedBody().Gas.SetResourceSimulationEnabled(false));
+        AddButton(column, "Probe only: set Heat to 100", () => { var gas = NeedBody().Gas; gas.SetResourcesForProbe(new(gas.ReadSnapshot().Energy, 100)); });
+        AddButton(column, "Reset resources to cold/depleted", () => NeedBody().Gas.ResetResourceState());
         AddButton(column, "Reset body", () => NeedBody().ResetBody());
         _slots = new VBoxContainer(); column.AddChild(_slots);
-        column.AddChild(new Label { Text = "Clients observe only. Host/client flags use local ENet port 24873.\nRaw/effective values describe physical structure. GAS, movement, energy and heat remain deferred." });
+        column.AddChild(new Label { Text = "Clients observe only. Host/client flags use local ENet port 24873.\nPhysical structure feeds canonical GAS/resources. Movement and environment consequences remain deferred." });
     }
 
     private MechSlot SelectedSlot() => (MechSlot)_slot.GetSelectedId();
@@ -95,7 +104,7 @@ public partial class MechBodyProbe : Control
         var button = new Button { Text = text };
         button.Pressed += () =>
         {
-            try { action(); _status.Text = "Operation completed."; }
+            try { action(); _status.Text = "Operation completed."; RefreshSlots(); }
             catch (Exception error) { _status.Text = error.Message; }
         };
         column.AddChild(button);
@@ -149,10 +158,17 @@ public partial class MechBodyProbe : Control
         if (view is not null) _slots.AddChild(new Label { Text =
             $"Functioning mobility parts: {view.CountCapability(PartCapability.Mobility)}\n{DescribeStructure(view)}" });
         if (Body is { } current) _slots.AddChild(new Label { Text =
-            $"GAS canonical/mirror: {current.Gas.Snapshot.Serialize()}\nReal ASC: {current.Gas.UsesRealAsc}; local development effect: {current.Gas.HasDevelopmentModifier}" });
+            $"GAS canonical/mirror: {current.Gas.Snapshot.Serialize()}\nReal ASC: {current.Gas.UsesRealAsc}; local development effect: {current.Gas.HasDevelopmentModifier}\n" +
+            (_client ? "Resource inputs and simulation are server-owned." : $"Heat load/s: {current.Gas.ExternalHeatLoad}; idle drain/s: {current.Gas.ResourceSettings.BaseEnergyDrainPerSecond}; running: {current.Gas.ResourceSimulationEnabled}") });
     }
 
-    private NetworkMechBody Spawn() => _world.Spawn<NetworkMechBody>(_prefab, _ => { });
+    private NetworkMechBody Spawn()
+    {
+        var body = _world.Spawn<NetworkMechBody>(_prefab, _ => { });
+        // Scripted assertions sample server-controlled steps, not independently ticking clocks.
+        if (_scripted) body.Gas.SetResourceSimulationEnabled(false);
+        return body;
+    }
 
     private async void Run()
     {
@@ -182,6 +198,7 @@ public partial class MechBodyProbe : Control
                 RunOfflineChecks();
                 RunDamageOfflineChecks();
                 RunGasOfflineChecks();
+                await RunEnergyHeatOfflineChecks();
                 GD.Print("MECH_OFFLINE_PASS"); result = 0;
             }
             else if (_client)
@@ -195,6 +212,7 @@ public partial class MechBodyProbe : Control
                 Require(_world.Count == 0 && old.View.Parts.Count == 0, "Disconnect left stale client parts.");
                 Require(oldGas.CleanedUp && oldGas.Snapshot == default && oldGas.ReadSnapshot() == default, "Disconnect left stale GAS mirror.");
                 GD.Print("MECH_GAS_CLIENT_PASS real_asc=true mirror=true snapshots=12 canonical_late_sync=true cleanup=true");
+                GD.Print("MECH_RESOURCES_CLIENT_PASS native_mirror=true no_client_simulation=true cleanup=true");
                 GD.Print("MECH_CLIENT_PASS disconnect_clear=true"); result = 0;
             }
             else
@@ -300,6 +318,9 @@ public partial class MechBodyProbe : Control
         Require(actual.HasMobility == input.HasMobility && actual.HasSensor == input.HasSensor &&
             actual.HasPower == input.HasPower && actual.HasCooling == input.HasCooling, "Native GAS capability tags mismatch.");
         Require(actual == gas.Snapshot && actual.Serialize() == body.GasState, "Snapshot was not captured from native GAS.");
+        Require(actual.Energy >= 0 && actual.Energy <= actual.PowerCapacity && actual.Heat >= 0 && actual.Heat <= 100 &&
+            actual.PowerDepleted == (actual.Energy <= 0) && actual.ThermalCritical == (actual.Heat >= 100),
+            "Native resource bounds/tags differ from canonical hard boundaries.");
     }
 
     private void RunGasOfflineChecks()
@@ -349,12 +370,78 @@ public partial class MechBodyProbe : Control
         }
         finally { gas.Changed -= OnChanged; }
         body.ResetBody(); CheckGas(body);
-        Require(gas.ReadSnapshot() == default, "Reset retained GAS structural state.");
+        Require(gas.ReadSnapshot() == MechGasSnapshot.ColdEmpty, "Reset retained GAS structural state.");
         // Leave a real active effect on another body to verify destruction cleans its handle/tag too.
         var teardownBody = _world.Objects.Select(o => o.Host).OfType<NetworkMechBody>().First(b => !ReferenceEquals(b, body));
         teardownBody.Gas.SetDevelopmentModifier(true);
         CheckGas(teardownBody);
         GD.Print("MECH_GAS_OFFLINE_PASS real_asc=true attributes=Mobility,PowerCapacity,CoolingCapacity tags=true aggregate_capability=true additive_modifier_preserved=true modifier_removed=true no_churn=true reset=true");
+    }
+
+    private async Task RunEnergyHeatOfflineChecks()
+    {
+        var body = NeedBody(); var gas = body.Gas;
+        body.AttachPart(MechSlot.LeftLeg, body.CreatePart("debug_leg"));
+        body.AttachPart(MechSlot.Power, body.CreatePart("debug_power"));
+        body.AttachPart(MechSlot.Cooling, body.CreatePart("debug_cooling"));
+        gas.ConfigureResources(new(1, 1, 0.5f));
+        gas.SetDevelopmentModifier(true);
+        Require(gas.InitializeEnergyFull(), "Energy initialization failed.");
+        Require(!gas.InitializeEnergyFull(), "Energy initialization can be reused as recharge.");
+        CheckGas(body); Near(10, gas.ReadSnapshot().Energy, "Native Energy did not initialize to capacity.");
+        Near(0, gas.ReadSnapshot().Heat, "Fresh Heat was not cold.");
+        gas.SetExternalHeatLoad(8);
+        var first = gas.AdvanceResources(0.5f);
+        Near(8.25f, gas.ReadSnapshot().Energy, "Base drain/cooling did not mutate native Energy.");
+        Near(1.5f, gas.ReadSnapshot().Heat, "External load/cooling did not mutate native Heat.");
+        Near(1.25f, first.CoolingEnergySpent, "Cooling cost mismatch.");
+        gas.SetExternalHeatLoad(0);
+        var cooled = gas.AdvanceResources(0.5f);
+        Near(0, gas.ReadSnapshot().Heat, "No-load cooling failed.");
+        Near(0.75f, cooled.CoolingEnergySpent, "Cooling charged for unavailable Heat.");
+        body.ApplyDamage(MechSlot.Cooling, 0.5f);
+        gas.SetResourcesForProbe(new(10, 0)); gas.SetExternalHeatLoad(8);
+        gas.AdvanceResources(0.5f); CheckGas(body);
+        Near(2.75f, gas.ReadSnapshot().Heat, "Damaged Cooling did not remove less Heat.");
+        body.ApplyDamage(MechSlot.Power, 0.5f); CheckGas(body);
+        Near(5, gas.ReadSnapshot().Energy, "Damaged Power failed to clamp native Energy immediately.");
+        body.SetCondition(MechSlot.Power, 1);
+        Near(5, gas.ReadSnapshot().Energy, "Restoring capacity gave free recharge.");
+        Require(!gas.InitializeEnergyFull(), "Capacity repair reopened fresh initialization.");
+        gas.SetExternalHeatLoad(100);
+        var depleted = gas.AdvanceResources(20); CheckGas(body);
+        Require(depleted.HeatRemoved == 0 && gas.ReadSnapshot().PowerDepleted && gas.ReadSnapshot().ThermalCritical,
+            "Zero Energy still cooled or boundary GAS tags did not appear.");
+        Near(100, gas.ReadSnapshot().Heat, "Heat escaped thermal bounds.");
+        body.ApplyDamage(MechSlot.Power, 1); body.ApplyDamage(MechSlot.Cooling, 1);
+        CheckGas(body); Require(body.HasPart(MechSlot.Power) && body.HasPart(MechSlot.Cooling), "Resource state detached physical parts.");
+        body.SetCondition(MechSlot.Power, 1); body.SetCondition(MechSlot.Cooling, 1);
+        Near(0, gas.ReadSnapshot().Energy, "Restored Power refilled depleted Energy.");
+        gas.SetResourcesForProbe(new(3, 50)); gas.SetExternalHeatLoad(0);
+        gas.AdvanceResources(0.25f); CheckGas(body);
+        Require(!gas.ReadSnapshot().PowerDepleted && !gas.ReadSnapshot().ThermalCritical, "Resource tags did not clear below hard boundaries.");
+        Near(1.5f, gas.ReadSnapshot().Mobility, "Resource mutation erased Mobility modifier or added a penalty.");
+        Require(gas.HasDevelopmentModifier, "Resource operations reset the ASC/effect.");
+        foreach (float invalid in new[] { -1f, float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+        {
+            try { gas.SetExternalHeatLoad(invalid); throw new Exception("Invalid heat load accepted."); }
+            catch (ArgumentOutOfRangeException) { }
+            try { gas.AdvanceResources(invalid); throw new Exception("Invalid resource delta accepted."); }
+            catch (ArgumentOutOfRangeException) { }
+        }
+        gas.SetResourcesForProbe(new(10, 0));
+        gas.SetResourceSimulationEnabled(true);
+        await Until(() => gas.ReadSnapshot().Energy < 10, 2000);
+        gas.SetResourceSimulationEnabled(false);
+        Require(gas.ReadSnapshot().Energy >= 9 && gas.HasDevelopmentModifier, "Bounded server cadence or effect coexistence failed.");
+        gas.ResetResourceState(); body.ResetBody(); gas.SetDevelopmentModifier(false);
+        CheckGas(body); Require(gas.ReadSnapshot() == MechGasSnapshot.ColdEmpty && gas.ExternalHeatLoad == 0, "Reset retained resource state/load.");
+        int publications = 0;
+        void OnChanged() => publications++;
+        gas.Changed += OnChanged;
+        try { gas.AdvanceResources(1); Require(publications == 0, "Stable depleted/cold state published again."); }
+        finally { gas.Changed -= OnChanged; }
+        GD.Print("MECH_RESOURCES_OFFLINE_PASS real_asc=true initialization_once=true cooling_cost_actual=true damage_capacity=true damaged_cooling=true zero_energy_stops_cooling=true hard_tags=true automatic_cadence=true modifier_preserved=true stable_no_churn=true");
     }
 
     private async Task RunGasServerChecks()
@@ -364,23 +451,34 @@ public partial class MechBodyProbe : Control
         body.AttachPart(MechSlot.LeftLeg, first);
         body.ApplyDamage(MechSlot.LeftLeg, 0.65f);
         gas.SetDevelopmentModifier(true);
+        body.AttachPart(MechSlot.Power, body.CreatePart("debug_power"));
+        body.AttachPart(MechSlot.Cooling, body.CreatePart("debug_cooling"));
+        gas.ConfigureResources(new(1, 1, 0.5f));
+        Require(gas.InitializeEnergyFull(), "Fresh resource initialization failed.");
+        gas.SetExternalHeatLoad(8);
+        gas.AdvanceResources(0.5f);
+        Near(8.25f, gas.ReadSnapshot().Energy, "Late resource Energy setup failed.");
+        Near(1.5f, gas.ReadSnapshot().Heat, "Late resource Heat setup failed.");
         CheckGas(body);
         await Until(() => _hello);
         await Stage(1, body); // damaged + GAS-modified late synchronization
         body.ApplyDamage(MechSlot.LeftLeg, 0.10f);
+        gas.AdvanceResources(0.5f);
         Require(gas.HasDevelopmentModifier, "Damage erased the independent GAS effect.");
         CheckGas(body); await Stage(2, body);
         Require(gas.SetDevelopmentModifier(false), "Modifier removal failed.");
         CheckGas(body); await Stage(3, body);
         body.AttachPart(MechSlot.RightLeg, body.CreatePart("debug_leg"));
         body.AttachPart(MechSlot.Sensor, body.CreatePart("debug_sensor"));
-        body.AttachPart(MechSlot.Power, body.CreatePart("debug_power"));
-        body.AttachPart(MechSlot.Cooling, body.CreatePart("debug_cooling"));
         CheckGas(body); await Stage(4, body);
         body.ApplyDamage(MechSlot.LeftLeg, 1);
         body.ApplyDamage(MechSlot.Sensor, 1);
         body.ApplyDamage(MechSlot.Power, 0.5f);
         body.ApplyDamage(MechSlot.Cooling, 0.6f);
+        Near(5, gas.ReadSnapshot().Energy, "Power damage did not clamp Energy.");
+        float previousHeat = gas.ReadSnapshot().Heat;
+        gas.AdvanceResources(0.5f);
+        Require(gas.ReadSnapshot().Heat > previousHeat, "Damaged Cooling did not change resource evolution.");
         CheckGas(body); Require(gas.ReadSnapshot().HasMobility && !gas.ReadSnapshot().HasSensor, "Aggregate GAS tag transition failed.");
         await Stage(5, body);
         body.ApplyDamage(MechSlot.RightLeg, 1);
@@ -389,20 +487,36 @@ public partial class MechBodyProbe : Control
         var replacement = body.CreatePart("debug_leg", 0.75f);
         Require(body.ReplacePart(MechSlot.LeftLeg, replacement, out var old) && ReferenceEquals(old, first), "Replacement identity mismatch.");
         body.ReplacePart(MechSlot.Sensor, body.CreatePart("debug_sensor"), out _);
+        float beforeCapacityIncrease = gas.ReadSnapshot().Energy;
+        body.SetCondition(MechSlot.Power, 1);
+        Near(beforeCapacityIncrease, gas.ReadSnapshot().Energy, "Capacity increase refilled Energy.");
+        Require(!gas.InitializeEnergyFull(), "Repeated initialization provided free recharge.");
         CheckGas(body); await Stage(7, body);
         Require(ReferenceEquals(body.DetachPart(MechSlot.LeftLeg), replacement), "Detach mismatch.");
         CheckGas(body); await Stage(8, body);
         body.SetCondition(MechSlot.Cooling, 0.2f);
+        gas.SetResourcesForProbe(new(0, 98));
+        gas.AdvanceResources(0.5f);
+        Require(gas.ReadSnapshot().PowerDepleted && gas.ReadSnapshot().ThermalCritical && gas.ReadSnapshot().Heat == 100,
+            "Resource hard-boundary tags did not converge.");
         CheckGas(body); await Stage(9, body);
-        body.ResetBody(); CheckGas(body); await Stage(10, body);
+        gas.ResetResourceState(); body.ResetBody(); CheckGas(body); await Stage(10, body);
         _world.Despawn(body.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").Id);
         await Until(() => _world.Count == 0);
         Require(gas.CleanedUp && gas.Snapshot == default && body.View.Parts.Count == 0, "Old body retained GAS state.");
         var fresh = Spawn(); var freshGas = fresh.Gas;
-        Require(fresh.View.Parts.Count == 0 && freshGas.ReadSnapshot() == default && !freshGas.HasDevelopmentModifier, "Fresh body inherited GAS state.");
+        Require(fresh.View.Parts.Count == 0 && freshGas.ReadSnapshot() == MechGasSnapshot.ColdEmpty && !freshGas.HasDevelopmentModifier, "Fresh body inherited GAS state.");
         fresh.AttachPart(MechSlot.LeftLeg, fresh.CreatePart("debug_leg"));
+        fresh.AttachPart(MechSlot.Power, fresh.CreatePart("debug_power"));
+        fresh.AttachPart(MechSlot.Cooling, fresh.CreatePart("debug_cooling"));
+        Require(freshGas.InitializeEnergyFull(), "Fresh body inherited consumed initialization.");
+        Near(10, freshGas.ReadSnapshot().Energy, "Fresh Energy initialization mismatch.");
+        Near(0, freshGas.ReadSnapshot().Heat, "Fresh body inherited Heat.");
         CheckGas(fresh); await Stage(11, fresh);
         freshGas.SetDevelopmentModifier(true);
+        freshGas.SetResourcesForProbe(new(0, 100));
+        freshGas.SetExternalHeatLoad(100);
+        freshGas.AdvanceResources(1);
         CheckGas(fresh); await Stage(12, fresh);
         Rpc(MethodName.FinishRpc);
         await Until(() => Multiplayer.GetPeers().Length == 0);
@@ -410,6 +524,7 @@ public partial class MechBodyProbe : Control
         await Until(() => _world.Count == 0);
         Require(freshGas.CleanedUp && freshGas.Snapshot == default && !freshGas.HasDevelopmentModifier, "Teardown retained native GAS effect/tag/snapshot.");
         GD.Print("MECH_GAS_SERVER_PASS real_asc=true snapshots=12 canonical_late_sync=true additive_modifier_preserved=true tags=true client_authority_rejected=true cleanup=true");
+        GD.Print("MECH_RESOURCES_SERVER_PASS real_asc=true energy_heat_mirrors=true nondefault_late_sync=true damaged_capacity=true damaged_cooling=true boundary_tags=true fresh_state=true");
         GD.Print("MECH_SERVER_PASS stages=12 client_guards=true damage=true reset=true disconnect_clear=true fresh_body=true");
     }
 
@@ -448,11 +563,19 @@ public partial class MechBodyProbe : Control
         Reject(() => body.Gas.SetDevelopmentModifier(true));
         Reject(() => body.Gas.SetDevelopmentModifier(false));
         Reject(() => body.PublishGasSnapshot(new MechGasSnapshot(99, 99, 99, true, true, true, true)));
+        Reject(() => body.Gas.InitializeEnergyFull());
+        Reject(() => body.Gas.SetResourcesForProbe(new(1, 50)));
+        Reject(() => body.Gas.SetExternalHeatLoad(100));
+        Reject(() => body.Gas.AdvanceResources(0.25f));
+        Reject(() => body.Gas.SetResourceSimulationEnabled(true));
+        Reject(() => body.Gas.ConfigureResources(new(100, 1, 1)));
+        Reject(() => body.Gas.ResetResourceState());
+        Require(!body.Gas.ResourceSimulationEnabled, "Client independently simulates resources.");
         Require(typeof(MechGasComponent).GetMethod("SetAttribute") is null && typeof(MechGasComponent).GetMethod("GrantTag") is null &&
             typeof(MechGasComponent).GetMethod("RemoveTag") is null &&
             typeof(NetworkMechBody).GetProperty(nameof(NetworkMechBody.GasState))!.SetMethod!.IsPrivate,
             "Client-visible arbitrary attribute/tag/snapshot API exists.");
-        GD.Print($"MECH_CLIENT_GUARDS stage={_pendingStage} rejected=12 gas_authority=true");
+        GD.Print($"MECH_CLIENT_GUARDS stage={_pendingStage} rejected=19 gas_authority=true resource_authority=true");
     }
     private static void Reject(Action action)
     {

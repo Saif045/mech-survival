@@ -12,6 +12,15 @@ public partial class MechGasComponent : Node
     private ReplicationComponent? _replication;
     private MechGasSnapshot? _baseline;
     private MechGasSnapshot? _lastMirror;
+    private EnergyHeatSettings _resourceSettings = EnergyHeatSettings.Default;
+    private float _externalHeatLoad;
+    private double _resourceElapsed;
+    private bool _resourceSimulationEnabled = true;
+    private bool _energyInitialized;
+    public const float ResourceStepSeconds = 0.25f;
+    public EnergyHeatSettings ResourceSettings => _resourceSettings;
+    public float ExternalHeatLoad => _externalHeatLoad;
+    public bool ResourceSimulationEnabled => _resourceSimulationEnabled;
     public MechGasSnapshot Snapshot { get; private set; }
     public bool CleanedUp { get; private set; }
     public bool UsesRealAsc => _gas?.UsesRealAsc ?? false;
@@ -23,6 +32,7 @@ public partial class MechGasComponent : Node
         _body = GetParent<NetworkMechBody>();
         _replication = _body.GetNode<NetworkObject>("NetworkObject").GetComponent<ReplicationComponent>();
         _gas = MechGasAdapter.Create(this, Multiplayer.IsServer());
+        if (!Multiplayer.IsServer()) _resourceSimulationEnabled = false;
         _body.Changed += OnStructureChanged;
         _replication.Synchronized += OnReplicated;
         _replication.DeltaSynchronized += OnReplicated;
@@ -48,6 +58,7 @@ public partial class MechGasComponent : Node
     }
     private void Publish()
     {
+        _gas!.ReconcileResourceBounds();
         var snapshot = _gas!.Capture();
         _gas.ConsumeChanged();
         if (snapshot == Snapshot && _body.GasState == snapshot.Serialize()) return;
@@ -74,9 +85,61 @@ public partial class MechGasComponent : Node
         return changed;
     }
     public MechGasSnapshot ReadSnapshot() => _gas?.Capture() ?? default;
+    public bool InitializeEnergyFull()
+    {
+        RequireServer();
+        if (_energyInitialized) return false;
+        var current = ReadSnapshot();
+        _gas!.ApplyResources(EnergyHeatPolicy.InitializeFull(new(current.Energy, current.Heat), current.PowerCapacity));
+        _energyInitialized = true;
+        Publish();
+        return true;
+    }
+    public void SetExternalHeatLoad(float unitsPerSecond)
+    {
+        RequireServer(); EnergyHeatPolicy.Nonnegative(unitsPerSecond, nameof(unitsPerSecond));
+        _externalHeatLoad = unitsPerSecond;
+    }
+    public void ConfigureResources(EnergyHeatSettings settings)
+    {
+        RequireServer(); settings.Validate(); _resourceSettings = settings;
+    }
+    public void SetResourceSimulationEnabled(bool enabled)
+    {
+        RequireServer(); _resourceSimulationEnabled = enabled; _resourceElapsed = 0;
+    }
+    public EnergyHeatStepResult AdvanceResources(float delta)
+    {
+        RequireServer();
+        var current = ReadSnapshot();
+        var previous = new EnergyHeatState(current.Energy, current.Heat);
+        var result = EnergyHeatPolicy.Step(previous, current.PowerCapacity, current.CoolingCapacity,
+            _externalHeatLoad, delta, _resourceSettings);
+        if (result.State != previous) { _gas!.ApplyResources(result.State); Publish(); }
+        return result;
+    }
+    public void ResetResourceState()
+    {
+        RequireServer(); _externalHeatLoad = 0; _resourceElapsed = 0;
+        _gas!.ApplyResources(default); Publish();
+        // Initialization stays consumed: reset is not a gameplay recharge path.
+    }
+    internal void SetResourcesForProbe(EnergyHeatState state)
+    {
+        RequireServer(); _gas!.ApplyResources(state); Publish();
+    }
     public override void _Process(double delta)
     {
-        if (Multiplayer.IsServer() && _gas!.ConsumeChanged()) Publish();
+        if (!Multiplayer.IsServer()) return;
+        if (_gas!.ConsumeChanged()) Publish();
+        if (!_resourceSimulationEnabled) return;
+        _resourceElapsed = Math.Min(_resourceElapsed + delta, ResourceStepSeconds * 4);
+        int steps = 0;
+        while (_resourceElapsed >= ResourceStepSeconds && steps++ < 4)
+        {
+            _resourceElapsed -= ResourceStepSeconds;
+            AdvanceResources(ResourceStepSeconds);
+        }
     }
     public override void _ExitTree()
     {
@@ -90,5 +153,6 @@ public partial class MechGasComponent : Node
         if (!CleanedUp) GD.PushError("Mech GAS teardown retained attributes, effects or tags.");
         _gas = null;
         Snapshot = default; _baseline = null; _lastMirror = null;
+        _externalHeatLoad = 0; _resourceElapsed = 0; _resourceSimulationEnabled = false; _energyInitialized = false;
     }
 }

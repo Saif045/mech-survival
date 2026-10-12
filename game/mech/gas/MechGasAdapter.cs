@@ -25,15 +25,24 @@ internal sealed class MechGasAdapter
     }
     internal void ApplyMirror(MechGasSnapshot snapshot)
     {
-        if (!_bridge.Call("apply_mirror", Values(snapshot), Tags(snapshot)).AsBool())
+        Godot.Collections.Array values = [snapshot.Mobility, snapshot.PowerCapacity, snapshot.CoolingCapacity, snapshot.Energy, snapshot.Heat];
+        Godot.Collections.Array tags = [snapshot.HasMobility, snapshot.HasSensor, snapshot.HasPower, snapshot.HasCooling, snapshot.PowerDepleted, snapshot.ThermalCritical];
+        if (!_bridge.Call("apply_mirror", values, tags).AsBool())
             throw new InvalidOperationException("GAS mirror rejected its authoritative snapshot.");
     }
     internal MechGasSnapshot Capture()
     {
         var data = _bridge.Call("capture_snapshot").AsGodotDictionary();
         return new(data["Mobility"].AsSingle(), data["PowerCapacity"].AsSingle(), data["CoolingCapacity"].AsSingle(),
-            data["HasMobility"].AsBool(), data["HasSensor"].AsBool(), data["HasPower"].AsBool(), data["HasCooling"].AsBool());
+            data["HasMobility"].AsBool(), data["HasSensor"].AsBool(), data["HasPower"].AsBool(), data["HasCooling"].AsBool(),
+            data["Energy"].AsSingle(), data["Heat"].AsSingle(), data["PowerDepleted"].AsBool(), data["ThermalCritical"].AsBool());
     }
+    internal void ApplyResources(EnergyHeatState state)
+    {
+        if (!_bridge.Call("apply_resources", state.Energy, state.Heat).AsBool())
+            throw new InvalidOperationException("Authoritative GAS resource mutation rejected.");
+    }
+    internal void ReconcileResourceBounds() => _bridge.Call("reconcile_resources");
     internal bool SetDevelopmentModifier(bool enabled) => _bridge.Call("set_development_modifier",
         enabled ? GD.Load<GDScript>("res://game/probes/gas/mech_debug_modifier.gd").New() : default).AsBool();
     internal bool HasDevelopmentModifier => _bridge.Call("has_development_modifier").AsBool();
