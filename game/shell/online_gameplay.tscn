@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://cmekgameplay05"]
+
+[ext_resource type="PackedScene" path="res://factory/shell/online_gameplay.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://game/player/playable_mech.tscn" id="2"]
+
+[node name="OnlineGameplayShell" instance=ExtResource("1")]
+
+[node name="OnlineGameplayWorld" parent="." index="0"]
+PlayerScene = ExtResource("2")

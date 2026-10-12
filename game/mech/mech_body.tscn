@@ -47,7 +47,7 @@ CompatibleSlots = PackedInt32Array(8)
 Capabilities = PackedInt32Array(3)
 CoolingCapacity = 5.0
 
-[node name="MechBody" type="Node"]
+[node name="MechBody" type="CharacterBody3D"]
 script = ExtResource("1")
 Definitions = Array[ExtResource("3")]([SubResource("Core"), SubResource("Torso"), SubResource("Sensor"), SubResource("Arm"), SubResource("Leg"), SubResource("Power"), SubResource("Cooling")])
 

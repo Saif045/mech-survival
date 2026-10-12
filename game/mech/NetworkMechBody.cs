@@ -9,7 +9,7 @@ using MechSurvival.Mech.Gas;
 namespace MechSurvival.Mech;
 
 /// <summary>A server-owned body, independent of any connected player.</summary>
-public partial class NetworkMechBody : Node
+public partial class NetworkMechBody : CharacterBody3D
 {
     [Export] public Godot.Collections.Array<MechPartDefinitionResource> Definitions { get; set; } = [];
     [Export, Replicated(ReplicationMode.OnChange)]

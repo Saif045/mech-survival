@@ -1,0 +1,68 @@
+[gd_scene load_steps=13 format=3 uid="uid://cmekplayer05"]
+
+[ext_resource type="PackedScene" path="res://game/mech/mech_body.tscn" id="1"]
+[ext_resource type="Script" path="res://game/player/PlayableMech.cs" id="2"]
+[ext_resource type="Script" path="res://factory/networking/netfox/NetfoxRollbackPlayerComponent.cs" id="3"]
+[ext_resource type="Script" path="res://game/player/mech_input.gd" id="4"]
+[ext_resource type="Script" path="res://game/player/mech_simulation.gd" id="5"]
+[ext_resource type="Script" path="res://game/player/mech_presentation.gd" id="6"]
+[ext_resource type="Script" path="res://game/player/mech_camera.gd" id="7"]
+[ext_resource type="Script" path="res://addons/netfox/rollback/rollback-synchronizer.gd" id="8"]
+[ext_resource type="Script" path="res://addons/netfox/tick-interpolator.gd" id="9"]
+
+[sub_resource type="CapsuleShape3D" id="Collision"]
+radius = 0.55
+height = 2.0
+
+[sub_resource type="BoxMesh" id="Torso"]
+size = Vector3(1.1, 1.1, 0.7)
+
+[sub_resource type="BoxMesh" id="Sensor"]
+size = Vector3(0.6, 0.35, 0.65)
+
+[node name="PlayableMech" instance=ExtResource("1")]
+script = ExtResource("2")
+
+[node name="NetworkObject" parent="." index="0"]
+SpawnGroup = 1
+
+[node name="NetfoxRollbackPlayerComponent" type="Node" parent="NetworkObject"]
+script = ExtResource("3")
+
+[node name="Input" type="Node" parent="."]
+script = ExtResource("4")
+
+[node name="Simulation" type="Node" parent="."]
+script = ExtResource("5")
+
+[node name="Presentation" type="Node3D" parent="."]
+script = ExtResource("6")
+
+[node name="Visual" type="Node3D" parent="Presentation"]
+
+[node name="Torso" type="MeshInstance3D" parent="Presentation/Visual"]
+mesh = SubResource("Torso")
+
+[node name="Sensor" type="MeshInstance3D" parent="Presentation/Visual"]
+position = Vector3(0, 0.7, -0.15)
+mesh = SubResource("Sensor")
+
+[node name="Camera3D" type="Camera3D" parent="Presentation"]
+transform = Transform3D(1, 0, 0, 0, 0.928477, 0.371391, 0, -0.371391, 0.928477, 0, 6, 10)
+script = ExtResource("7")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("Collision")
+
+[node name="RollbackSynchronizer" type="Node" parent="."]
+script = ExtResource("8")
+enable_prediction = true
+state_properties = [":position", ":velocity", "Simulation:grounded"]
+input_properties = ["Input:movement", "Input:jump_pressed"]
+enable_input_broadcast = false
+
+[node name="TickInterpolator" type="Node" parent="."]
+script = ExtResource("9")
+properties = ["Presentation:position"]
+
+[editable path="NetworkObject"]

@@ -46,6 +46,18 @@ persistence remain undecided. Do not implement them as part of this foundation.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
 problem with the routed upstream repair workflow.
 
+The normal player prefab is the game-owned playable mech, composed through the
+released PlayerScene seam and v0.1.2's configured gameplay routing.
+Read [the playable contract](docs/playable-mech.md)
+for player/input/movement work. PlayerLifecycle tracks the initial operated body;
+player identity remains distinct from body identity. Generic mech bodies stay
+empty; complete loadout and explicit Energy initialization are playable policy.
+Only deterministic latency-sensitive physical inputs belong in Netfox rollback.
+Discrete actions use semantic InputMap actions and mechanic-specific validated
+server requests; never read physical keys or place arbitrary buttons in rollback.
+Keep fixed development locomotion separate from Mobility/resources until an
+explicit gameplay task connects them. Keep camera/color outside rollback.
+
 Build and test commands are in the contract. Every runtime attempt follows
 `docs/testing-protocol.md` and `docs/runtime-test-operator.md`. After a terminal
 failure, follow `docs/investigation-protocol.md`; retries need explicit approval.
