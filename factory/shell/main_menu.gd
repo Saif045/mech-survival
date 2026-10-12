@@ -1,5 +1,8 @@
 extends "res://addons/maaacks_game_template/examples/scenes/menus/main_menu/main_menu.gd"
 
+func get_game_scene_path() -> String:
+	return GameShell.ResolveOnlineGameplayScenePath()
+
 func _ready() -> void:
 	super._ready()
 	new_game_button.text = "Host Game"

@@ -42,6 +42,16 @@ public partial class GameShell : Node
         GameLog.Info("shell", "host_requested", fields: LaunchIntentFields(_onlineGameplayLaunchIntent.Value));
     }
 
+    /// <summary>Use Maaack's configured game target for every normal online entry route.</summary>
+    public string ResolveOnlineGameplayScenePath()
+    {
+        GDScript paths = GD.Load<GDScript>("res://addons/maaacks_game_template/base/nodes/config/runtime_template_paths.gd");
+        string configured = paths.Call("get_game_path").AsString();
+        return !string.IsNullOrWhiteSpace(configured) && ResourceLoader.Exists(configured, "PackedScene")
+            ? configured
+            : OnlineGameplayScenePath;
+    }
+
     public void MainMenuShown()
     {
         GameLog.Info("shell", "main_menu");
@@ -83,7 +93,7 @@ public partial class GameShell : Node
     {
         if (!ulong.TryParse(lobbyId, out ulong value) || value == 0) { GameplayLaunchFailed("invalid_lobby_id"); return; }
         _onlineGameplayLaunchIntent = OnlineGameplayLaunchIntent.Join(new SteamLobbyId(value));
-        GetNode("/root/SceneLoader").Call("load_scene", OnlineGameplayScenePath);
+        GetNode("/root/SceneLoader").Call("load_scene", ResolveOnlineGameplayScenePath());
         GameLog.Info("shell", "join_requested", fields: LaunchIntentFields(_onlineGameplayLaunchIntent.Value));
     }
 
@@ -182,7 +192,7 @@ public partial class GameShell : Node
             ["lobby_id"] = lobbyId.ToString(),
             ["inviter_steam_id"] = inviter.ToString()
         });
-        GetNode("/root/SceneLoader").Call("load_scene", OnlineGameplayScenePath);
+        GetNode("/root/SceneLoader").Call("load_scene", ResolveOnlineGameplayScenePath());
         GameLog.Info("shell", "online_gameplay_scene_requested", fields: LaunchIntentFields(intent));
     }
 

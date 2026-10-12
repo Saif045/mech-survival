@@ -57,6 +57,32 @@ mechanic in `factory/` because it might someday be reusable. A missing extension
 seam can justify an upstream improvement when its reusable contract is clear.
 Otherwise keep game-specific behavior in the game.
 
+## Online gameplay scene routing
+
+Set `maaacks_game_template/game_scene_path` to the saved game-owned gameplay
+scene. This existing Maaack setting is the single normal gameplay entry target
+for Host, direct Join, Steam invite Join, and command-line `+connect_lobby`
+routing. GameFactory uses Maaack's runtime path helper and `SceneLoader`; the
+factory menu resolves through `GameShell.ResolveOnlineGameplayScenePath()` too,
+rather than using its inherited per-menu `game_scene_path` override. No second
+GameFactory setting is required. An absent, empty, or unavailable configured
+scene falls back to `res://factory/shell/online_gameplay.tscn`.
+
+The downstream `Saif045/mech-survival` reproduction exposed that Host honored
+the configured scene while Join and Invite loaded the factory scene directly.
+All routes now share resolution while retaining Host/Join launch intents,
+invite logging and active-session rejection. Command-line connect still uses
+`AppBootstrap` -> `GameShell.JoinLobby()`. A game-owned scene must retain the
+normal shell composition/session ownership and consume the pending intent once.
+
+After building, run `sandbox/shell/run_online_gameplay_routing_probe.ps1` for
+local acceptance using the real Maaack loader and a session-free scene fixture.
+It checks default/fallback resolution, all four custom routes, one-shot intents,
+and pending-invite rejection. It preserves evidence under
+`artifacts/online_gameplay_routing/<Label>/`, restores runtime settings, and
+removes its isolated profile. Steam transport and visual gameplay are outside
+this routing check.
+
 ## Custom gameplay player scenes
 
 `OnlineGameplayWorld.PlayerScene` is a downstream composition seam. Set it to a
