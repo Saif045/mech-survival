@@ -6,7 +6,6 @@ using Godot;
 using GameFactory.Diagnostics;
 using GameFactory.Gameplay.Carry;
 using GameFactory.Gameplay.Interaction;
-using GameFactory.Networking.Netfox.Player3D;
 using GameFactory.Networking.Objects;
 using GameFactory.Networking.Peers;
 using GameFactory.Networking.Players;
@@ -18,7 +17,7 @@ namespace GameFactory.Shell;
 /// <summary>
 /// The small, visible gameplay composition used by the online shell. Steam
 /// session ownership stays with <see cref="OnlineGameplayShell"/>; this node
-/// only creates and removes the server-authoritative Netfox world.
+/// only creates and removes the server-authoritative gameplay world.
 /// </summary>
 public partial class OnlineGameplayWorld : Node3D
 {
@@ -109,8 +108,9 @@ public partial class OnlineGameplayWorld : Node3D
         {
             // Peer removal must reach the live lifecycle before it is disposed.
             // Queued player exits release hidden items and remove GAS effects.
+            NetworkObjectId[] playerObjectIds = _players.Players.Select(player => player.ObjectId).ToArray();
             _peers.Clear();
-            await WaitUntilAsync(() => !_world.Objects.Any(obj => obj.Host is NetworkPlayer3D));
+            await WaitUntilAsync(() => playerObjectIds.All(id => !_world.TryGet(id, out _)));
             foreach (NetworkObject obj in _world.Objects.ToArray())
                 _world.Despawn(obj.Id);
         }
@@ -143,11 +143,11 @@ public partial class OnlineGameplayWorld : Node3D
     private NetworkObjectId SpawnPlayer(NetworkPeer peer, PlayerId playerId)
     {
         Vector3 position = playerId.Value == 1 ? new Vector3(-2, 2, 0) : new Vector3(2, 2, 0);
-        NetworkPlayer3D player = _world.Spawn<NetworkPlayer3D>(PlayerScene, peer.Id, new Godot.Collections.Dictionary
+        Node player = _world.Spawn<Node>(PlayerScene, peer.Id, new Godot.Collections.Dictionary
         {
             ["spawn_position"] = position
         });
-        return player.GetNetworkObject().Id;
+        return NetworkObject.RequireFromHost(player).Id;
     }
 
     private void OnPeerDisconnected(long peerValue)
