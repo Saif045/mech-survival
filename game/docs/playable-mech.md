@@ -70,8 +70,8 @@ Only deterministic latency-sensitive physical inputs belong in Netfox rollback.
 Discrete gameplay actions use semantic InputMap actions and mechanic-specific
 server-validated reliable requests. Do not put arbitrary interaction buttons in
 rollback, read physical keys in gameplay, or create speculative generic action RPCs.
-Bindings/remapping remain Godot/Maaack configuration. No new discrete mechanic
-or future install/detach action is implemented here.
+Bindings/remapping remain Godot/Maaack configuration. The game-owned service
+controller consumes discrete service actions; see [field parts](field-parts.md).
 
 Presentation copies completed simulation and interpolates a separate top-level
 transform. Primitive torso/sensor geometry faces horizontal motion and derives

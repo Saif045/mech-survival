@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://cmekplayer05"]
+[gd_scene load_steps=17 format=3 uid="uid://cmekplayer05"]
 
 [ext_resource type="PackedScene" path="res://game/mech/mech_body.tscn" id="1"]
 [ext_resource type="Script" path="res://game/player/PlayableMech.cs" id="2"]
@@ -13,6 +13,8 @@
 [ext_resource type="Script" path="res://factory/gameplay/interaction/PlayerInteractor.cs" id="interactor"]
 [ext_resource type="Script" path="res://factory/gameplay/carry/PlayerCarrier.cs" id="carrier"]
 [ext_resource type="Script" path="res://game/player/MechFieldPermission.cs" id="permission"]
+
+[ext_resource type="Script" path="res://game/player/MechServiceController.cs" id="service"]
 
 [sub_resource type="CapsuleShape3D" id="Collision"]
 radius = 0.55
@@ -84,5 +86,20 @@ PermissionPath = NodePath("../FieldPermission")
 script = ExtResource("carrier")
 PermissionPath = NodePath("../FieldPermission")
 AnchorPath = NodePath("../Presentation/CarryAnchor")
+
+[node name="MechServiceController" type="Node" parent="."]
+script = ExtResource("service")
+
+[node name="HUD" type="CanvasLayer" parent="MechServiceController"]
+
+[node name="SlotLabel" type="Label" parent="MechServiceController/HUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 750.0
+offset_bottom = 80.0
+mouse_filter = 2
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
 
 [editable path="NetworkObject"]

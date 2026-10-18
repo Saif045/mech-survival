@@ -59,11 +59,27 @@ public partial class NetworkMechBody : CharacterBody3D
 
     private void ValidateDefinition(PartInstance part)
     {
-        if (!_definitions.TryGetValue(part.Definition.Model, out var definition) ||
-            !definition.CompatibleSlots.SequenceEqual(part.Definition.CompatibleSlots) ||
-            !definition.Capabilities.SequenceEqual(part.Definition.Capabilities) ||
-            !definition.Contributions.OrderBy(p => p.Key).SequenceEqual(part.Definition.Contributions.OrderBy(p => p.Key)))
+        if (!MatchesDefinition(part))
             throw new ArgumentException("Part must use this body's configured definitions.", nameof(part));
+    }
+
+    private bool MatchesDefinition(PartInstance part) =>
+        _definitions.TryGetValue(part.Definition.Model, out var definition) &&
+        definition.CompatibleSlots.SequenceEqual(part.Definition.CompatibleSlots) &&
+        definition.Capabilities.SequenceEqual(part.Definition.Capabilities) &&
+        definition.Contributions.OrderBy(p => p.Key).SequenceEqual(part.Definition.Contributions.OrderBy(p => p.Key));
+
+    public bool CanReplacePart(MechSlot slot, PartInstance part)
+    {
+        RequireServer();
+        return MatchesDefinition(part) && _body.CanReplacePart(slot, part);
+    }
+
+    // Mutable references never become client views. Service uses this to verify recovery/ownership.
+    internal PartInstance? GetServerPart(MechSlot slot)
+    {
+        RequireServer();
+        return _body.GetPart(slot);
     }
 
     public bool AttachPart(MechSlot slot, PartInstance part)

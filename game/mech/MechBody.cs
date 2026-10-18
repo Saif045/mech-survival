@@ -34,11 +34,20 @@ public sealed class MechBody
 
     public bool AttachPart(MechSlot slot, PartInstance part)
     {
-        ValidateSlot(slot);
-        ArgumentNullException.ThrowIfNull(part);
-        if (_parts.ContainsKey(slot) || !CanInstall(slot, part)) return false;
+        if (!CanAttachPart(slot, part)) return false;
         Install(slot, part);
         return true;
+    }
+
+    public bool CanAttachPart(MechSlot slot, PartInstance part) =>
+        CanReplacePart(slot, part) && !_parts.ContainsKey(slot);
+
+    /// <summary>Validates empty or occupied targets without changing either part's ownership.</summary>
+    public bool CanReplacePart(MechSlot slot, PartInstance part)
+    {
+        ValidateSlot(slot);
+        ArgumentNullException.ThrowIfNull(part);
+        return CanInstall(slot, part);
     }
 
     private bool CanInstall(MechSlot slot, PartInstance part) =>
@@ -54,11 +63,9 @@ public sealed class MechBody
 
     public bool ReplacePart(MechSlot slot, PartInstance part, out PartInstance? previous)
     {
-        ValidateSlot(slot);
-        ArgumentNullException.ThrowIfNull(part);
         previous = null;
         // Validate before removing anything. Reinstalling the same instance is rejected.
-        if (!CanInstall(slot, part)) return false;
+        if (!CanReplacePart(slot, part)) return false;
         previous = DetachPart(slot);
         Install(slot, part);
         return true;

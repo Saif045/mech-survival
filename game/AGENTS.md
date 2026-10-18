@@ -16,6 +16,11 @@ server PartInstance; clients receive only immutable identity/model/condition.
 Pickup/drop preserves both part and network object IDs. Compose factory
 CarryTarget/PlayerCarrier/PlayerInteractor with explicit game permissions and
 presentation anchor; carry and semantic actions stay outside rollback.
+Field service requests contain only a selected slot; the server derives carried
+parts and transforms, validates ownership and body policy before mutation, and
+transfers exact PartInstance references. Successful install despawns the incoming
+loose embodiment; replacement spawns the outgoing instance. Keep service out of
+rollback and leave canonical stat/resource consequences to existing Mech GAS.
 
 Only `NetworkMechBody` calls the pure mutable rules in networked gameplay.
 Consumers inspect its immutable `View`. Keep composition and condition out of
