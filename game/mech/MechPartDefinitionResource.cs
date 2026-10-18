@@ -16,7 +16,8 @@ public partial class MechPartDefinitionResource : Resource
     [Export] public float PowerCapacity { get; set; }
     [Export] public float CoolingCapacity { get; set; }
 
-    public PartDefinition Freeze() => new(Model, CompatibleSlots.Select(s => (MechSlot)s),
+    private PartDefinition? _definition;
+    public PartDefinition Freeze() => _definition ??= new(Model, CompatibleSlots.Select(s => (MechSlot)s),
         Capabilities.Select(c => (PartCapability)c), new Dictionary<PartStat, float>
         {
             [PartStat.Mobility] = Mobility,

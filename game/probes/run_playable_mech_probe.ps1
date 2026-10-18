@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Import','Offline','Multiplayer')][string]$Mode = 'Multiplayer',
+    [switch]$FieldParts,
     [string]$RunId = ('playable_' + (Get-Date -Format 'yyyyMMdd_HHmmss')),
     [string]$Godot = 'D:\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe'
 )
@@ -40,13 +41,14 @@ function Get-FrozenState {
 # one leg, native +0.5 modifier, damage with modifier retained, capability gate
 # with positive modifier value, zero and restored setup. Resources/jump unchanged.
 # Participants are test-owned local Godot processes only. No VM or Steam session.
-@{ mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
+@{ field_parts = [bool]$FieldParts; assertions = $(if ($FieldParts) { 'two real loose parts; projection and server instance; host pickup before client observation; anchor follow; one-item capacity; both owner request paths; stable IDs/drop transforms; client guards; reset and fresh identities' } else { 'playable mobility regression' }); mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
     timeout_seconds = 90; transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
     profile = $profile; profile_policy = 'Disposable APPDATA, restored and deleted after each run. Request command-level approval if sandbox access is insufficient.' } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/contract.json"
 
 function Start-Probe([string]$Role, [string[]]$Extra) {
+    if ($FieldParts -and $Mode -ne 'Import') { $Extra += '--field-parts' }
     $arguments = @('--headless','--path',$repo,'--log-file',"$evidence/$Role.engine.log")
     if ($Mode -eq 'Import') { $arguments += @('--editor','--quit') }
     else { $arguments += @('res://game/probes/playable_mech_probe.tscn','--') + $Extra }
@@ -103,9 +105,12 @@ try {
         if (-not (Select-String -LiteralPath "$evidence/host.stdout.log" -Pattern 'PLAYABLE_SERVER_PASS' -Quiet)) { throw 'Server playable assertions did not complete.' }
         if (-not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'PLAYABLE_CLIENT_PASS' -Quiet)) { throw 'Client playable assertions did not complete.' }
         $observed = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'PLAYABLE_OBSERVED stage=')
-        if ($observed.Count -ne 7) { throw 'Expected seven canonical/converged snapshots with client guards.' }
+        if (-not $FieldParts -and $observed.Count -ne 7) { throw 'Expected seven canonical/converged snapshots with client guards.' }
     }
-    if ($Mode -ne 'Import') {
+    if ($FieldParts -and $Mode -ne 'Import') {
+        if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'FIELD_ACCEPTANCE_PASS' -Quiet)) { throw 'Field acceptance missing.' }
+    }
+    if (-not $FieldParts -and $Mode -ne 'Import') {
         if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'MOBILITY_ACCEPTANCE_PASS cases=10' -Quiet)) { throw 'Mobility acceptance did not complete.' }
         if ($Mode -eq 'Multiplayer') {
             $mobility = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern '^MOBILITY_OBSERVED stage=')
@@ -114,6 +119,10 @@ try {
         }
         $cleanupMarkers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'PLAYABLE_CLEANUP objects=0')
         if ($cleanupMarkers.Count -ne $owned.Count) { throw 'World cleanup assertions are missing.' }
+    }
+    if ($FieldParts -and $Mode -ne 'Import') {
+        $markers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'PLAYABLE_CLEANUP objects=0')
+        if ($markers.Count -ne $owned.Count) { throw 'World cleanup assertions missing.' }
     }
     $stage = 'complete'; $result = 'PASS'
 } catch {

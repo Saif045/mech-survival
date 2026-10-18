@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://cmekplayer05"]
+[gd_scene load_steps=16 format=3 uid="uid://cmekplayer05"]
 
 [ext_resource type="PackedScene" path="res://game/mech/mech_body.tscn" id="1"]
 [ext_resource type="Script" path="res://game/player/PlayableMech.cs" id="2"]
@@ -9,6 +9,10 @@
 [ext_resource type="Script" path="res://game/player/mech_camera.gd" id="7"]
 [ext_resource type="Script" path="res://addons/netfox/rollback/rollback-synchronizer.gd" id="8"]
 [ext_resource type="Script" path="res://addons/netfox/tick-interpolator.gd" id="9"]
+
+[ext_resource type="Script" path="res://factory/gameplay/interaction/PlayerInteractor.cs" id="interactor"]
+[ext_resource type="Script" path="res://factory/gameplay/carry/PlayerCarrier.cs" id="carrier"]
+[ext_resource type="Script" path="res://game/player/MechFieldPermission.cs" id="permission"]
 
 [sub_resource type="CapsuleShape3D" id="Collision"]
 radius = 0.55
@@ -64,5 +68,21 @@ enable_input_broadcast = false
 [node name="TickInterpolator" type="Node" parent="."]
 script = ExtResource("9")
 properties = ["Presentation:position"]
+
+
+[node name="CarryAnchor" type="Node3D" parent="Presentation"]
+position = Vector3(0, 0.3, -1.1)
+
+[node name="FieldPermission" type="Node" parent="."]
+script = ExtResource("permission")
+
+[node name="PlayerInteractor" type="Node" parent="."]
+script = ExtResource("interactor")
+PermissionPath = NodePath("../FieldPermission")
+
+[node name="PlayerCarrier" type="Node" parent="."]
+script = ExtResource("carrier")
+PermissionPath = NodePath("../FieldPermission")
+AnchorPath = NodePath("../Presentation/CarryAnchor")
 
 [editable path="NetworkObject"]

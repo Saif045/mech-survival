@@ -10,6 +10,13 @@ connected player distinct from its operated body. `NetworkObjectId` identifies
 the spawned body; `MechPartId` identifies a runtime part. Neither represents an
 account, peer, player, or persistent inventory item.
 
+Read [field parts](docs/field-parts.md) for loose parts and carry. Shared authored
+definitions live in `mech/definitions/`. A loose embodiment retains the exact
+server PartInstance; clients receive only immutable identity/model/condition.
+Pickup/drop preserves both part and network object IDs. Compose factory
+CarryTarget/PlayerCarrier/PlayerInteractor with explicit game permissions and
+presentation anchor; carry and semantic actions stay outside rollback.
+
 Only `NetworkMechBody` calls the pure mutable rules in networked gameplay.
 Consumers inspect its immutable `View`. Keep composition and condition out of
 Netfox rollback. Do not add client installation RPCs without a concrete

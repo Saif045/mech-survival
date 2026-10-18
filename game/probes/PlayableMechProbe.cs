@@ -54,6 +54,7 @@ public partial class PlayableMechProbe : Node
             string[] args = OS.GetCmdlineUserArgs();
             _client = args.Contains("--playable-client");
             bool offline = args.Contains("--playable-offline");
+            bool fieldParts = args.Contains("--field-parts");
             Require(offline || _client || args.Contains("--playable-host"), "Select an explicit probe role.");
             // Exercise real interpolation even with the headless display driver.
             GetNode("/root/InterpolationServer").Call("set_server_enabled", true);
@@ -70,7 +71,7 @@ public partial class PlayableMechProbe : Node
             Require(shell is OnlineGameplayShell, "Normal factory shell was replaced.");
             _gameplay = shell.GetNode<OnlineGameplayWorld>("OnlineGameplayWorld");
             Require(_gameplay.PlayerScene.ResourcePath == "res://game/player/playable_mech.tscn", "Normal PlayerScene is not the mech.");
-            Require(_gameplay.RoundContentPath.IsEmpty, "The mech world must not include starter round content.");
+            Require(_gameplay.GetNode(_gameplay.RoundContentPath) is MechSurvival.Shell.FieldPartsRoundContent, "Round content must be game-owned field parts.");
             Require(_gameplay.GetNode(_gameplay.SpawnDataProviderPath) is MechSurvival.Shell.MechSpawnDataProvider,
                 "Spawn policy must be game-owned.");
             shell.RemoveChild(_gameplay); shell.Free();
@@ -91,6 +92,11 @@ public partial class PlayableMechProbe : Node
                 RpcId(1, MethodName.HelloRpc);
                 await Until(() => _finished, 90000);
                 GD.Print("PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
+            }
+            else if (fieldParts)
+            {
+                await FieldAcceptance(offline);
+                GD.Print(offline ? "PLAYABLE_OFFLINE_PASS" : "PLAYABLE_SERVER_PASS");
             }
             else
             {
@@ -352,7 +358,8 @@ public partial class PlayableMechProbe : Node
         _busy = true;
         try
         {
-            if (command == "reset") { RememberRound(); await ResetAndCheck(); }
+            if (command.StartsWith("field_")) await FieldCommand(command, samples);
+            else if (command == "reset") { RememberRound(); await ResetAndCheck(); }
             else if (command.StartsWith("mobility_move_")) await MeasureOwner(command[14..], "move_forward");
             else if (command == "client_move") await DriveOwner("move_forward");
             else if (command == "client_jump") await JumpOwner();

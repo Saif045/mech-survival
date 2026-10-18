@@ -18,8 +18,8 @@ possession or automatic core-required rule is introduced.
 
 `MechPartDefinitionResource` is Godot inspector configuration: model key,
 compatible slots, capabilities and base contributions. On startup it becomes an
-immutable `PartDefinition`. The small debug definitions are local subresources
-in `mech_body.tscn`; this is not an item database. Slot/capability integer arrays
+immutable `PartDefinition`. The seven debug definitions are shared resources in
+`game/mech/definitions/`, used by bodies and loose parts. Slot/capability integer arrays
 use the enum values in `MechSlot.cs` and are validated when frozen. Keep model
 keys and enum meanings consistent across peers; normal matched builds supply
 the same definitions.
@@ -29,8 +29,8 @@ the same definitions.
 Its installed-body claim prevents one instance from occupying two bodies.
 Identity survives detach/reinstall/replace and is replicated as data. No caller
 can assign a runtime part's ID. This is session identity, not a persistent item
-key and not a reuse of Steam ID, PeerId, PlayerId or NetworkObjectId. Parts have
-no independent world nodes in this slice; the body has its own NetworkObjectId.
+key and not a reuse of Steam ID, PeerId, PlayerId or NetworkObjectId. Loose parts have their own NetworkWorld embodiment; see [field parts](field-parts.md).
+The body has its own NetworkObjectId.
 
 `MechBody` supplies pure C# attachment policy. `NetworkMechBody` keeps that
 mutable model private, checks server peer 1 authority and world binding before

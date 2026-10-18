@@ -20,7 +20,7 @@ Maaack's `game_scene_path` selects `game/shell/online_gameplay.tscn`, a game-own
 composition of reusable `OnlineGameplayShell`/`OnlineGameplayWorld`, with
 `PlayerScene` configured to `game/player/playable_mech.tscn`. GameShell's fallback
 selects the same game-owned scene. The game-owned spawn provider preserves the
-accepted positions; round content is empty. No sample switch/carryable or starter
+accepted positions; game-owned round content spawns two loose field parts. No sample switch/carryable or starter
 player/GAS composition is loaded. See [v0.2 migration](v0.2-consumer-migration.md)
 for composition, resource ownership and acceptance evidence.
 
@@ -108,7 +108,7 @@ profile, verify zero owned processes and released ports. Runtime failures freeze
 the attempt; investigate one hypothesis and obtain retry authorization before
 changing/rerunning acceptance.
 
-Movement resource costs, field parts, repair,
+Movement resource costs, repair,
 hazards, death/core transfer, extraction, persistence and final presentation,
 camera, animation/UI/audio remain deferred.
 

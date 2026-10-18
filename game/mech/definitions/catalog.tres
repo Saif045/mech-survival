@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://game/mech/MechPartCatalogResource.cs" id="1"]
+[ext_resource type="Script" path="res://game/mech/MechPartDefinitionResource.cs" id="2"]
+[ext_resource type="Resource" path="res://game/mech/definitions/core.tres" id="Core"]
+[ext_resource type="Resource" path="res://game/mech/definitions/torso.tres" id="Torso"]
+[ext_resource type="Resource" path="res://game/mech/definitions/sensor.tres" id="Sensor"]
+[ext_resource type="Resource" path="res://game/mech/definitions/arm.tres" id="Arm"]
+[ext_resource type="Resource" path="res://game/mech/definitions/leg.tres" id="Leg"]
+[ext_resource type="Resource" path="res://game/mech/definitions/power.tres" id="Power"]
+[ext_resource type="Resource" path="res://game/mech/definitions/cooling.tres" id="Cooling"]
+
+[resource]
+script = ExtResource("1")
+Definitions = Array[ExtResource("2")]([ExtResource("Core"), ExtResource("Torso"), ExtResource("Sensor"), ExtResource("Arm"), ExtResource("Leg"), ExtResource("Power"), ExtResource("Cooling")])
