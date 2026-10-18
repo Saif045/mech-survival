@@ -12,6 +12,7 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
     <!-- Compile the exact product rules without loading Godot or its native runtime. -->
+    <Compile Include="../../salvage/SalvageChallenge.cs" Link="Model/SalvageChallenge.cs" />
     <Compile Include="../../mech/PartCatalog.cs" Link="Model/PartCatalog.cs" />
     <Compile Include="../../mech/MechSlot.cs" Link="Model/MechSlot.cs" />
     <Compile Include="../../mech/PartDefinition.cs" Link="Model/PartDefinition.cs" />

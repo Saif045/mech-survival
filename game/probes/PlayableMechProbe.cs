@@ -56,6 +56,7 @@ public partial class PlayableMechProbe : Node
             bool offline = args.Contains("--playable-offline");
             bool fieldParts = args.Contains("--field-parts");
             bool service = args.Contains("--service");
+            bool salvage = args.Contains("--salvage");
             Require(offline || _client || args.Contains("--playable-host"), "Select an explicit probe role.");
             // Exercise real interpolation even with the headless display driver.
             GetNode("/root/InterpolationServer").Call("set_server_enabled", true);
@@ -93,6 +94,11 @@ public partial class PlayableMechProbe : Node
                 RpcId(1, MethodName.HelloRpc);
                 await Until(() => _finished, 90000);
                 GD.Print("PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
+            }
+            else if (salvage)
+            {
+                await SalvageAcceptance(offline);
+                GD.Print(offline ? "PLAYABLE_OFFLINE_PASS" : "PLAYABLE_SERVER_PASS");
             }
             else if (service)
             {
@@ -364,7 +370,8 @@ public partial class PlayableMechProbe : Node
         _busy = true;
         try
         {
-            if (command.StartsWith("service_")) await ServiceCommand(command, samples);
+            if (command.StartsWith("salvage_")) await SalvageCommand(command, samples);
+            else if (command.StartsWith("service_")) await ServiceCommand(command, samples);
             else if (command.StartsWith("field_")) await FieldCommand(command, samples);
             else if (command == "reset") { RememberRound(); await ResetAndCheck(); }
             else if (command.StartsWith("mobility_move_")) await MeasureOwner(command[14..], "move_forward");
@@ -455,7 +462,7 @@ public partial class PlayableMechProbe : Node
     private void FinishRpc() => _finished = true;
     private void OnConnected() => _connected = true;
     private static float PlanarDistance(Vector3 a, Vector3 b) => new Vector2(a.X - b.X, a.Z - b.Z).Length();
-    private static void ReleaseInputs() { foreach (string action in new[] { "move_left", "move_right", "move_forward", "move_backward", "jump", "interact", "drop_item", "service_part", "service_next_slot" }) Input.ActionRelease(action); }
+    private static void ReleaseInputs() { foreach (string action in new[] { "move_left", "move_right", "move_forward", "move_backward", "jump", "interact", "drop_item", "service_part", "service_next_slot", "hack_1", "hack_2", "hack_3", "hack_4" }) Input.ActionRelease(action); }
     private async Task Until(Func<bool> condition, ulong timeout = 10000)
     {
         ulong deadline = Time.GetTicksMsec() + timeout;

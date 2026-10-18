@@ -52,6 +52,22 @@ initialization/processes/initialize_on_startup=false
 
 [input]
 
+hack_1={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":49,"unicode":49)]
+}
+hack_2={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":50,"unicode":50)]
+}
+hack_3={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":51,"unicode":51)]
+}
+hack_4={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":52,"unicode":52)]
+}
 service_next_slot={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":74,"unicode":106)]

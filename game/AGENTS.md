@@ -22,6 +22,13 @@ transfers exact PartInstance references. Successful install despawns the incomin
 loose embodiment; replacement spawns the outgoing instance. Keep service out of
 rollback and leave canonical stat/resource consequences to existing Mech GAS.
 
+Read [salvage machine](docs/salvage-machine.md) for the concrete neutral encounter.
+The server owns its challenge, operator, timeout and actual reward instances;
+clients send only chosen symbols and render observations. Release exact stored
+parts once through LooseMechPart; failure loses unreleased rewards without player
+damage. Keep encounter state outside rollback and avoid generic enemy/minigame
+frameworks. World teardown must clear encounter timers and reward ownership.
+
 Only `NetworkMechBody` calls the pure mutable rules in networked gameplay.
 Consumers inspect its immutable `View`. Keep composition and condition out of
 Netfox rollback. Do not add client installation RPCs without a concrete
