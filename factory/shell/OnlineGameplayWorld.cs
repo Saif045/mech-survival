@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using GameFactory.Diagnostics;
-using GameFactory.Gameplay.Carry;
-using GameFactory.Gameplay.Interaction;
 using GameFactory.Networking.Objects;
 using GameFactory.Networking.Peers;
 using GameFactory.Networking.Players;
@@ -27,8 +25,13 @@ public partial class OnlineGameplayWorld : Node3D
     private NetworkWorld _world = null!;
     private PlayerLifecycle? _playerLifecycle;
     private bool _started;
+    private IRoundContent? _roundContent;
+    private IPlayerSpawnDataProvider? _spawnDataProvider;
+    private bool _contentActive;
+    private bool _configured;
+    private bool _subscribed;
 
-    public bool IsEmpty => !_started && _playerLifecycle is null &&
+    public bool IsEmpty => !_started && !_contentActive && _playerLifecycle is null &&
         _players.Count == 0 && _peers.Count == 0 && _world.Count == 0;
 
     public Dictionary<string, string?> StateFields() => new()
@@ -36,25 +39,43 @@ public partial class OnlineGameplayWorld : Node3D
         ["players"] = _players.Count.ToString(),
         ["peers"] = _peers.Count.ToString(),
         ["network_objects"] = _world.Count.ToString(),
-        ["player_lifecycle_active"] = (_playerLifecycle is not null).ToString()
+        ["player_lifecycle_active"] = (_playerLifecycle is not null).ToString(),
+        ["round_content_active"] = _contentActive.ToString()
     };
 
     [Export] public PackedScene PlayerScene { get; set; } = null!;
-    [Export] public PackedScene SwitchScene { get; set; } = null!;
-    [Export] public PackedScene CarryableScene { get; set; } = null!;
+    /// <summary>Relative to this world. Empty explicitly means no dynamic round content.</summary>
+    [Export] public NodePath RoundContentPath { get; set; } = new("");
+    /// <summary>Required explicitly composed initialization-data provider.</summary>
+    [Export] public NodePath SpawnDataProviderPath { get; set; } = new("");
 
     public override void _Ready()
     {
         _world = GetNode<NetworkWorld>("NetworkWorld");
+        ResolveComposition();
+        _configured = true;
         Multiplayer.PeerDisconnected += OnPeerDisconnected;
+        _subscribed = true;
+    }
+
+    private void ResolveComposition()
+    {
+        if (SpawnDataProviderPath.IsEmpty || GetNodeOrNull<Node>(SpawnDataProviderPath) is not IPlayerSpawnDataProvider spawnData)
+            throw new InvalidOperationException("OnlineGameplayWorld requires SpawnDataProviderPath to reference an IPlayerSpawnDataProvider node.");
+        _spawnDataProvider = spawnData;
+        if (RoundContentPath.IsEmpty) { _roundContent = null; return; }
+        _roundContent = GetNodeOrNull<Node>(RoundContentPath) as IRoundContent
+            ?? throw new InvalidOperationException("OnlineGameplayWorld RoundContentPath must reference an IRoundContent node or be empty.");
     }
 
     public void Start()
     {
         if (_started) return;
+        if (!_configured) throw new InvalidOperationException("OnlineGameplayWorld composition is not valid/ready.");
         if (Multiplayer.IsServer() && !IsEmpty)
             throw new InvalidOperationException("The previous gameplay world is not empty.");
         _started = true;
+        _contentActive = _roundContent is not null;
 
         if (!Multiplayer.IsServer())
         {
@@ -74,14 +95,7 @@ public partial class OnlineGameplayWorld : Node3D
         }
 
         _playerLifecycle = new PlayerLifecycle(_peers, _players, _runtime, SpawnPlayer, _world.Despawn);
-        _world.Spawn<InteractableSwitch>(SwitchScene, PeerId.Server, new Godot.Collections.Dictionary
-        {
-            ["spawn_position"] = new Vector3(0, 0.625f, -1.5f)
-        });
-        _world.Spawn<CarryableItem>(CarryableScene, PeerId.Server, new Godot.Collections.Dictionary
-        {
-            ["spawn_transform"] = new Transform3D(Basis.Identity, new Vector3(0, 0.35f, 1.5f))
-        });
+        _roundContent?.StartRound(_world);
         GameLog.Info("shell.gameplay", "host_started", fields: new Dictionary<string, string?>
         {
             ["players"] = _players.Count.ToString(),
@@ -91,11 +105,12 @@ public partial class OnlineGameplayWorld : Node3D
 
     public void Stop()
     {
-        if (!_started) return;
+        if (!_started && _playerLifecycle is null && !_contentActive) return;
         _started = false;
         _playerLifecycle?.Dispose();
         _playerLifecycle = null;
         _peers.Clear();
+        ResetContent();
         GameLog.Info("shell.gameplay", "stopped");
     }
 
@@ -119,6 +134,7 @@ public partial class OnlineGameplayWorld : Node3D
         await WaitUntilAsync(() => _world.Count == 0);
         _playerLifecycle?.Dispose();
         _playerLifecycle = null;
+        ResetContent();
         if (!IsEmpty) throw new InvalidOperationException("Round teardown left gameplay state registered.");
         GameLog.Info("shell.gameplay", "round_world_cleared", fields: StateFields());
     }
@@ -136,17 +152,22 @@ public partial class OnlineGameplayWorld : Node3D
 
     public override void _ExitTree()
     {
-        Multiplayer.PeerDisconnected -= OnPeerDisconnected;
+        if (_subscribed) Multiplayer.PeerDisconnected -= OnPeerDisconnected;
         Stop();
+    }
+
+    private void ResetContent()
+    {
+        if (!_contentActive) return;
+        _roundContent!.ResetRound();
+        _contentActive = false;
     }
 
     private NetworkObjectId SpawnPlayer(NetworkPeer peer, PlayerId playerId)
     {
-        Vector3 position = playerId.Value == 1 ? new Vector3(-2, 2, 0) : new Vector3(2, 2, 0);
-        Node player = _world.Spawn<Node>(PlayerScene, peer.Id, new Godot.Collections.Dictionary
-        {
-            ["spawn_position"] = position
-        });
+        Godot.Collections.Dictionary data = _spawnDataProvider!.CreateSpawnData(peer, playerId)
+            ?? throw new InvalidOperationException("Player spawn-data provider returned null.");
+        Node player = _world.Spawn<Node>(PlayerScene, peer.Id, data);
         return NetworkObject.RequireFromHost(player).Id;
     }
 

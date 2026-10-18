@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://cnetfoxgameplayq"]
+
+[ext_resource type="Script" path="res://factory/sandbox/netfox/NetfoxGameplayProbe.cs" id="1_probe"]
+[ext_resource type="PackedScene" path="res://factory/networking/world/network_world.tscn" id="2_world"]
+[ext_resource type="PackedScene" path="res://factory/sandbox/netfox/netfox_gameplay_player.tscn" id="3_player"]
+
+[node name="NetfoxGameplayProbe" type="Node"]
+script = ExtResource("1_probe")
+PlayerScene = ExtResource("3_player")
+
+[node name="NetworkWorld" parent="." instance=ExtResource("2_world")]
+
+[editable path="NetworkWorld"]

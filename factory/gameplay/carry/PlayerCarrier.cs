@@ -2,195 +2,145 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using GameFactory.Diagnostics;
-using GameFactory.Gameplay.Gas;
-using GameFactory.Networking.Netfox.Player3D;
 using GameFactory.Networking.Objects;
 using GameFactory.Networking.Peers;
 
 namespace GameFactory.Gameplay.Carry;
 
-/// <summary>
-/// Player-local carry capacity and the owner-to-server drop request boundary.
-/// The carried item remains server-owned; this component never transfers
-/// network authority to the player.
-/// </summary>
-public partial class PlayerCarrier : Node
+/// <summary>One-item capacity and reliable owner-to-server drop requests.</summary>
+public partial class PlayerCarrier : Node, ICarryHolder
 {
-    [Export]
-    public Vector3 DropOffset { get; set; } = new(0, 0.5f, -1.25f);
-
+    [Export] public Vector3 DropOffset { get; set; } = new(0, 0.5f, -1.25f);
+    [Export] public NodePath AnchorPath { get; set; } = new("");
+    [Export] public NodePath PermissionPath { get; set; } = new("");
+    [Export] public bool EnableDefaultInput { get; set; } = true;
     private NetworkObject _player = null!;
     private Node3D _playerHost = null!;
     private Node3D _carryAnchor = null!;
+    private ICarryPermission? _permission;
     private long _carriedItemId;
-
-    public bool HasCarriedItem => _carriedItemId > 0;
-    internal bool CanReceiveRetrievedItem => !HasCarriedItem;
-
+    public NetworkObject NetworkObject => _player;
     public Node3D CarryAnchor => _carryAnchor;
+    public bool HasCarriedItem => Multiplayer.IsServer() ? _carriedItemId > 0 : FindHeldItem() is not null;
 
     public override void _Ready()
     {
         _playerHost = GetParent<Node3D>();
         _player = _playerHost.GetNode<NetworkObject>("NetworkObject");
-        _carryAnchor = _playerHost.GetNode<Node3D>("Presentation/CarryAnchor");
+        if (AnchorPath.IsEmpty || GetNodeOrNull<Node>(AnchorPath) is not Node3D anchor)
+            throw new InvalidOperationException("PlayerCarrier requires AnchorPath to reference a Node3D.");
+        _carryAnchor = anchor;
+        if (PermissionPath.IsEmpty || GetNodeOrNull<Node>(PermissionPath) is not ICarryPermission policy)
+            throw new InvalidOperationException("PlayerCarrier requires PermissionPath to reference an ICarryPermission node.");
+        _permission = policy;
     }
-
     public override void _Process(double delta)
     {
-        if (!IsLocalOwner() || (_playerHost as NetworkPlayer3D)?.IsIncapacitated == true || !Input.IsActionJustPressed("drop_item") ||
-            !HasHeldItemLocally())
-            return;
-
-        if (Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer())
-        {
-            HandleDrop(PeerId.Server);
-            return;
-        }
-
-        RpcId(PeerId.Server.Value, MethodName.RequestDropRpc);
+        if (EnableDefaultInput && Input.IsActionJustPressed("drop_item")) RequestDrop();
     }
-
+    public void RequestDrop()
+    {
+        if (!IsLocalOwner() || _permission is null || !_permission.CanDrop(_player) || !HasCarriedItem) return;
+        if (Multiplayer.IsServer()) HandleDrop(PeerId.Server);
+        else RpcId(PeerId.Server.Value, MethodName.RequestDropRpc);
+    }
     public override void _ExitTree()
     {
-        if (Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer() && HasCarriedItem)
-            HandleDrop(PeerId.Server, "carrier_exit");
+        if (_player is not null && Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer() && _carriedItemId > 0)
+            ReleaseHeldItem("carrier_exit");
     }
-
-    public bool TryPickup(CarryableItem item)
+    public bool TryPickup(ICarryTarget item)
     {
-        if (!Multiplayer.IsServer())
-            throw new InvalidOperationException("Only the server may assign a carried item.");
-
-        if (_playerHost.GetNode<NetworkGasComponent>("NetworkGasComponent").RejectIncapacitated(_player.OwnerPeerId, "pickup")) return false;
-
-        if (HasCarriedItem)
-        {
-            Log("rejected", item, "carrier_already_holding");
-            return false;
-        }
-
-        if (!item.TryPickUp(_player))
-            return false;
-
-        _carriedItemId = item.GetNetworkObject().Id.Value;
+        RequireServer();
+        // A removed item cannot permanently occupy the server's one-item cache.
+        if (_carriedItemId > 0 && (!_player.World.TryGet(new NetworkObjectId(_carriedItemId), out NetworkObject? held) ||
+            !IsRegistered(held))) _carriedItemId = 0;
+        if (_permission is null || !GodotObject.IsInstanceValid(_carryAnchor) || !_permission.CanPickup(_player))
+        { Log("rejected", item, "pickup_permission_denied"); return false; }
+        if (HasCarriedItem) { Log("rejected", item, "carrier_already_holding"); return false; }
+        NetworkObject target = item.NetworkObject;
+        if (!IsRegistered(target) || target == _player || target.Host.GetMultiplayerAuthority() != PeerId.Server.Value ||
+            !item.IsAvailable || item.HolderNetworkObjectId != 0)
+        { Log("rejected", item, "item_not_available"); return false; }
+        if (!item.TryAttach(_player)) return false;
+        _carriedItemId = target.Id.Value;
+        Log("picked_up", item, "authority_change");
         return true;
     }
-
-    internal void ClearStoredItem(CarryableItem item)
+    /// <summary>Server lifecycle release bypasses input permission, not holder validation.</summary>
+    public void ReleaseHeldItem(string reason = "lifecycle")
     {
-        if (!Multiplayer.IsServer())
-            throw new InvalidOperationException("Only the server may clear a stored carried item.");
-        if (_carriedItemId == item.GetNetworkObject().Id.Value)
-            _carriedItemId = 0;
+        RequireServer();
+        if (_carriedItemId > 0) Release(reason);
     }
-
-    internal void SetRetrievedItem(CarryableItem item)
+    /// <summary>Reconcile after a game-owned transition removed carry ownership.</summary>
+    public void ForgetHeldItem(ICarryTarget item)
     {
-        if (!Multiplayer.IsServer())
-            throw new InvalidOperationException("Only the server may assign a retrieved carried item.");
-        if (HasCarriedItem)
-            throw new InvalidOperationException("Cannot retrieve into an occupied carrier.");
-        _carriedItemId = item.GetNetworkObject().Id.Value;
+        RequireServer();
+        if (item.HolderNetworkObjectId == _player.Id.Value)
+            throw new InvalidOperationException("Release/transition the item before forgetting it.");
+        if (_carriedItemId == item.NetworkObject.Id.Value) _carriedItemId = 0;
     }
-
-    [Rpc(
-        MultiplayerApi.RpcMode.AnyPeer,
-        CallLocal = false,
-        TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    /// <summary>Reconcile after a game-owned transition established carry ownership.</summary>
+    public void AdoptHeldItem(ICarryTarget item)
+    {
+        RequireServer();
+        if (HasCarriedItem || !IsRegistered(item.NetworkObject) || item.HolderNetworkObjectId != _player.Id.Value)
+            throw new InvalidOperationException("Cannot adopt an occupied/unregistered/mismatched item.");
+        _carriedItemId = item.NetworkObject.Id.Value;
+    }
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void RequestDropRpc()
     {
-        if (!Multiplayer.IsServer())
-            return;
-
+        if (!Multiplayer.IsServer()) return;
         long sender = Multiplayer.GetRemoteSenderId();
-        if (sender <= 0)
-        {
-            Log("rejected", null, "invalid_rpc_sender");
-            return;
-        }
-
+        if (sender <= 0) { Log("rejected", null, "invalid_rpc_sender"); return; }
         HandleDrop(new PeerId(sender));
     }
-
-    public void DropOnDowned()
-    {
-        if (HasCarriedItem) HandleDrop(_player.OwnerPeerId, "carried_item_dropped_on_downed");
-    }
-
     private void HandleDrop(PeerId sender, string source = "request")
     {
-        if (!Multiplayer.IsServer())
-            throw new InvalidOperationException("Only the server may drop a carried item.");
-
-        if (source == "request" && _playerHost.GetNode<NetworkGasComponent>("NetworkGasComponent").RejectIncapacitated(sender, "drop")) return;
-
-        if (source == "request" && _player.OwnerPeerId != sender)
-        {
-            Log("rejected", null, "sender_is_not_player_owner");
-            return;
-        }
-
-        if (!HasCarriedItem)
-        {
-            Log("rejected", null, "player_not_carrying");
-            return;
-        }
-
-        NetworkObjectId itemId = new(_carriedItemId);
-        if (!_player.World.TryGet(itemId, out NetworkObject? itemObject) ||
-            itemObject?.Host is not CarryableItem item)
-        {
-            _carriedItemId = 0;
-            Log("rejected", null, "carried_item_missing");
-            return;
-        }
-
-        Transform3D dropTransform = _playerHost.GlobalTransform;
-        dropTransform.Origin += dropTransform.Basis * DropOffset;
-        if (!item.TryDrop(_player, dropTransform))
-        {
-            Log("rejected", item, "item_holder_mismatch");
-            return;
-        }
-
+        RequireServer();
+        if (_player.OwnerPeerId != sender) { Log("rejected", null, "sender_is_not_player_owner"); return; }
+        if (_permission is null || !_permission.CanDrop(_player)) { Log("rejected", null, "drop_permission_denied"); return; }
+        Release(source);
+    }
+    private void Release(string reason)
+    {
+        if (_carriedItemId <= 0) { Log("rejected", null, "player_not_carrying"); return; }
+        if (!_player.World.TryGet(new NetworkObjectId(_carriedItemId), out NetworkObject? obj) ||
+            !IsRegistered(obj) || CarryCapabilities.Target(obj!.Host) is not ICarryTarget item)
+        { _carriedItemId = 0; Log("rejected", null, "carried_item_missing"); return; }
+        if (item.HolderNetworkObjectId != _player.Id.Value || obj.Host.GetMultiplayerAuthority() != PeerId.Server.Value)
+        { _carriedItemId = 0; Log("rejected", item, "item_holder_mismatch"); return; }
+        Transform3D transform = _playerHost.GlobalTransform;
+        transform.Origin += transform.Basis * DropOffset;
+        if (!item.TryRelease(_player, transform)) { Log("rejected", item, "item_release_rejected"); return; }
         _carriedItemId = 0;
-        Log("dropped", item, source);
-        if (source == "carried_item_dropped_on_downed") Log(source, item, "downed");
+        Log("dropped", item, reason);
     }
-
-    private bool IsLocalOwner() =>
-        _player.IsBound && Multiplayer.HasMultiplayerPeer() &&
+    private bool IsRegistered(NetworkObject? obj) => obj is not null && GodotObject.IsInstanceValid(obj) && obj.IsBound &&
+        obj.World == _player.World && obj.Host.IsInsideTree() && !obj.Host.IsQueuedForDeletion() &&
+        _player.World.TryGet(obj.Id, out NetworkObject? registered) && registered == obj;
+    private ICarryTarget? FindHeldItem()
+    {
+        if (_player is null || !_player.IsBound) return null;
+        foreach (NetworkObject obj in _player.World.Objects)
+            if (CarryCapabilities.Target(obj.Host) is ICarryTarget item && item.HolderNetworkObjectId == _player.Id.Value) return item;
+        return null;
+    }
+    private bool IsLocalOwner() => _player is not null && _player.IsBound && Multiplayer.HasMultiplayerPeer() &&
         _player.OwnerPeerId.Value == Multiplayer.GetUniqueId();
-
-    private bool HasHeldItemLocally()
+    private void RequireServer()
     {
-        if (HasCarriedItem)
-            return true;
-
-        foreach (NetworkObject networkObject in _player.World.Objects)
-        {
-            if (networkObject.Host is CarryableItem item &&
-                item.HolderNetworkObjectId == _player.Id.Value)
-                return true;
-        }
-
-        return false;
+        if (!Multiplayer.IsServer()) throw new InvalidOperationException("Only the server may mutate carry state.");
     }
-
-    private void Log(string eventName, CarryableItem? item, string reason)
-    {
-        Dictionary<string, string?> fields = new()
+    private void Log(string eventName, ICarryTarget? item, string reason) =>
+        GameLog.Info("carry", eventName, fields: new Dictionary<string, string?>
         {
             ["player_network_object_id"] = _player.IsBound ? _player.Id.ToString() : null,
-            ["item_network_object_id"] = item?.GetNetworkObject().Id.ToString(),
+            ["item_network_object_id"] = item?.NetworkObject.IsBound == true ? item.NetworkObject.Id.ToString() : null,
             ["reason"] = reason,
             ["owner_peer_id"] = _player.IsBound ? _player.OwnerPeerId.ToString() : null,
-            ["health"] = (_playerHost as NetworkPlayer3D)?.GasHealth.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["state"] = (_playerHost as NetworkPlayer3D)?.GasIsDead == true ? "Dead" :
-                (_playerHost as NetworkPlayer3D)?.GasIsDowned == true ? "Downed" : "Normal",
-            ["role"] = Multiplayer.HasMultiplayerPeer() && Multiplayer.IsServer() ? "host" : "client"
-        };
-        GameLog.Info("carry", eventName, fields: fields);
-    }
+            ["role"] = Multiplayer.IsServer() ? "host" : "client"
+        });
 }

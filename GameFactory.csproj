@@ -11,7 +11,7 @@
     <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="factory/tests/**/*.cs" />
     <Compile Remove="game/tests/**/*.cs" />
   </ItemGroup>
 </Project>

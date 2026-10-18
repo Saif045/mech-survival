@@ -1,37 +1,14 @@
-# Gameplay Networking Scope
+# Reusable gameplay scope
 
-Read this guide for gameplay code layered on the networking foundation. Keep a
-feature's rules and state ownership explicit; do not introduce a generic
-ability, command, event-bus, or progression framework for one slice.
+Use [interaction](interaction/AGENTS.md) for target requests and
+[carry](carry/AGENTS.md) for holder/item composition. For starter inventory,
+vitals, equipment or revive go to [starter](../starter/AGENTS.md).
 
-Use this default choice:
-
-| Need | Mechanism |
-|---|---|
-| Continuous latency-sensitive player simulation | Netfox rollback |
-| Discrete request to server | Reliable RPC plus server validation |
-| Ordinary authoritative state | `ReplicationComponent` / `MultiplayerSynchronizer` |
-| Spawn/despawn | `NetworkWorld` / `MultiplayerSpawner` |
-
-For interaction, a client chooses a target locally but sends only a
-`NetworkObjectId`; the server resolves it through `NetworkWorld` and validates
-the sender, represented player, target, range, and current interactability.
-The client never authoritatively changes a target's state. Do not put switches,
-doors, pickups, or inventory into player rollback history without concrete
-evidence.
-
-Presentation is deterministic/local where possible. Owner-distinguishing
-colors derive from owner metadata, are consistent on all peers, and are never
-replicated or rolled back.
-
-Read `docs/architecture.md` for a cross-module ownership change and
-`docs/current-state.md` before claiming a gameplay slice acceptance-proven.
-
-Player vital tags are canonical server GAS state, projected through ordinary
-replication; clients must not derive Downed/Dead from health. Gate gameplay
-requests against canonical incapacitation as well as suppressing local input.
-Netfox reads that gate but records only physical state and reset consumption,
-never GAS tags/attributes. Normal death preserves stored/equipped items and
-their source effects; player despawn must release hidden items to World and
-remove equipment capabilities. In the player prefab, inventory must exit before
-GAS so source removal can run against the live ASC.
+- Actor/target policy belongs to the game; reusable mechanisms cannot depend
+  on starter players, GAS, inventory or product semantics.
+- Discrete requests use validated reliable RPC; ordinary authoritative state
+  uses Godot synchronization. Continuous physical simulation uses Netfox.
+- Client availability is a hint; server canonical validation decides.
+- Keep cosmetic presentation and discrete interaction/carry state outside rollback.
+- Read architecture only for cross-module boundary changes and current-state
+  only for maturity or evidence claims.

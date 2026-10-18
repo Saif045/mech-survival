@@ -60,15 +60,19 @@ public partial class PlayableMechProbe : Node
             string path = ProjectSettings.GetSetting("maaacks_game_template/game_scene_path").AsString();
             Require(path == "res://game/shell/online_gameplay.tscn", "Normal game is configured to a different scene.");
             var flow = GetNode<GameShell>("/root/GameShell");
+            Require(flow.FallbackGameplayScenePath == path, "Fallback must select the game-owned scene.");
             Node menu = GD.Load<PackedScene>(GameShell.MainMenuScenePath).Instantiate();
             Require(flow.ResolveOnlineGameplayScenePath() == path && menu.Call("get_game_scene_path").AsString() == path,
                 "Normal Host/Join routing does not resolve the configured mech scene.");
             menu.Free();
-            GD.Print($"PLAYABLE_ROUTING_CONFIG_PASS host_join_invite_connect_target={path} release=gamefactory-v0.1.2");
+            GD.Print($"PLAYABLE_ROUTING_CONFIG_PASS host_join_invite_connect_target={path} candidate=bb0ca72 fallback={flow.FallbackGameplayScenePath}");
             Node shell = GD.Load<PackedScene>(path).Instantiate();
             Require(shell is OnlineGameplayShell, "Normal factory shell was replaced.");
             _gameplay = shell.GetNode<OnlineGameplayWorld>("OnlineGameplayWorld");
             Require(_gameplay.PlayerScene.ResourcePath == "res://game/player/playable_mech.tscn", "Normal PlayerScene is not the mech.");
+            Require(_gameplay.RoundContentPath.IsEmpty, "The mech world must not include starter round content.");
+            Require(_gameplay.GetNode(_gameplay.SpawnDataProviderPath) is MechSurvival.Shell.MechSpawnDataProvider,
+                "Spawn policy must be game-owned.");
             shell.RemoveChild(_gameplay); shell.Free();
             _gameplay.Name = "Gameplay";
             // Extract the configured world only: no Steam lobby/session is requested.

@@ -11,7 +11,9 @@ namespace GameFactory.Shell;
 public partial class GameShell : Node
 {
     public const string MainMenuScenePath = "res://factory/shell/main_menu.tscn";
-    public const string OnlineGameplayScenePath = "res://factory/shell/online_gameplay.tscn";
+    /// <summary>Composition-owned fallback when Maaack has no valid gameplay target.</summary>
+    [Export(PropertyHint.File, "*.tscn")]
+    public string FallbackGameplayScenePath { get; set; } = string.Empty;
     public const string JoinMenuScenePath = "res://factory/shell/join_menu.tscn";
     private bool _leaveInProgress;
     private OnlineGameplayLaunchIntent? _onlineGameplayLaunchIntent;
@@ -47,9 +49,11 @@ public partial class GameShell : Node
     {
         GDScript paths = GD.Load<GDScript>("res://addons/maaacks_game_template/base/nodes/config/runtime_template_paths.gd");
         string configured = paths.Call("get_game_path").AsString();
-        return !string.IsNullOrWhiteSpace(configured) && ResourceLoader.Exists(configured, "PackedScene")
-            ? configured
-            : OnlineGameplayScenePath;
+        if (!string.IsNullOrWhiteSpace(configured) && ResourceLoader.Exists(configured, "PackedScene"))
+            return configured;
+        if (!string.IsNullOrWhiteSpace(FallbackGameplayScenePath) && ResourceLoader.Exists(FallbackGameplayScenePath, "PackedScene"))
+            return FallbackGameplayScenePath;
+        throw new InvalidOperationException("GameShell requires a valid configured gameplay target or FallbackGameplayScenePath.");
     }
 
     public void MainMenuShown()

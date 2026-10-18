@@ -110,7 +110,7 @@ The runner follows the repository's focused local multiprocess probe pattern
 and runtime protocol: unique preserved evidence, executable/build/port preflight,
 test-owned processes only, host readiness before client launch, bounded waits,
 terminal result and verified cleanup. Artifacts are in
-`artifacts/mech_body/<run_id>/`. Runtime assertion RPCs only select/acknowledge
+`game/artifacts/mech_body/<run_id>/`. Runtime assertion RPCs only select/acknowledge
 expected observations; the composition actually travels through ordinary
 GameFactory replication. The source/build/configuration stays frozen throughout
 each attempt. Agent-launched runs use a fresh disposable `APPDATA` profile;
@@ -153,7 +153,7 @@ return value, destroyed queries, empty detach and invalid condition rejection.
   teardown, zero live owned processes, temporary profile removal and restored
   APPDATA. No VM participant was used. The managed runtime SHA-256 was
   `4510AADE0AC786126A24BD0EF292EB31A7AD8BC1209F9F8A67D6C0318BBED195`.
-  Preserved artifacts are under `artifacts/mech_body/<run_id>/` and include the
+  Preserved artifacts are under `game/artifacts/mech_body/<run_id>/` and include the
   contract, frozen hash snapshots, stdout/stderr/engine logs and terminal result.
 - Earlier offline attempt `mech_offline_20261012_024436` is preserved as **FAIL**:
   rules passed but probe teardown tried unsubscribing signals offline mode never

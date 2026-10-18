@@ -1,0 +1,23 @@
+[gd_scene load_steps=6 format=3 uid="uid://dw4yce73kb2e1"]
+[ext_resource type="Script" path="res://factory/sandbox/carry/CarryFixtureActor.cs" id="1"]
+[ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
+[ext_resource type="Script" path="res://factory/gameplay/interaction/PlayerInteractor.cs" id="3"]
+[ext_resource type="Script" path="res://factory/gameplay/carry/PlayerCarrier.cs" id="4"]
+[ext_resource type="Script" path="res://factory/sandbox/carry/CarryFixturePolicy.cs" id="5"]
+[node name="CustomCarryActor" type="Node3D"]
+script = ExtResource("1")
+[node name="NetworkObject" parent="." instance=ExtResource("2")]
+[node name="Model" type="Node3D" parent="."]
+[node name="ToolSocket" type="Node3D" parent="Model"]
+position = Vector3(0, 0.35, -0.75)
+[node name="Use" type="Node" parent="."]
+script = ExtResource("3")
+PermissionPath = NodePath("../Permissions")
+EnableDefaultInput = false
+[node name="GripController" type="Node" parent="."]
+script = ExtResource("4")
+AnchorPath = NodePath("../Model/ToolSocket")
+PermissionPath = NodePath("../Permissions")
+EnableDefaultInput = false
+[node name="Permissions" type="Node" parent="."]
+script = ExtResource("5")

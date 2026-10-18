@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3 uid="uid://cf4xsfjm44up1"]
+[ext_resource type="Script" path="res://factory/sandbox/shell/round_composition/RoundFixturePlayer.cs" id="1"]
+[ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
+[node name="CustomRoundPlayer" type="Node3D"]
+script = ExtResource("1")
+[node name="NetworkObject" parent="." instance=ExtResource("2")]
+SpawnGroup = 1

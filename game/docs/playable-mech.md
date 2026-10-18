@@ -16,11 +16,13 @@ remains server-owned. Possession, persistent cores and body transfer are deferre
 
 ## Normal composition
 
-Maaack's `game_scene_path` selects `game/shell/online_gameplay.tscn`, an inherited
-factory online shell with only `OnlineGameplayWorld.PlayerScene` overridden to
-`game/player/playable_mech.tscn`. The normal session/lobby/world behavior and sample
-switch/carryable remain. No sample player interaction/carry/GAS components are
-attached to the mech.
+Maaack's `game_scene_path` selects `game/shell/online_gameplay.tscn`, a game-owned
+composition of reusable `OnlineGameplayShell`/`OnlineGameplayWorld`, with
+`PlayerScene` configured to `game/player/playable_mech.tscn`. GameShell's fallback
+selects the same game-owned scene. The game-owned spawn provider preserves the
+accepted positions; round content is empty. No sample switch/carryable or starter
+player/GAS composition is loaded. See [v0.2 migration](v0.2-consumer-migration.md)
+for composition, resource ownership and acceptance evidence.
 
 The playable scene inherits the accepted `mech_body.tscn` definitions and real
 Mech GAS composition. `NetworkMechBody` is now a CharacterBody3D; arbitrary base
@@ -120,11 +122,11 @@ The final required runs reached PASS/complete:
 
 | Run ID | Assertions / evidence directory |
 | --- | --- |
-| `mech_v012_routing_20261012_01` | Import, real SceneLoader Host/direct Join/invite/+connect_lobby, fallback, pending-invite rejection and one-shot intents; `artifacts/online_gameplay_routing/mech_v012_routing_20261012_01/` |
-| `mech_v012_offline_20261012_01` | Existing body/damage/native GAS/resources and automatic resource cadence; `artifacts/mech_body/mech_v012_offline_20261012_01/` |
-| `mech_v012_multiplayer_20261012_01` | Existing twelve-stage late-sync, damage, modifier/resource, 228 rejection and cleanup regression; `artifacts/mech_body/mech_v012_multiplayer_20261012_01/` |
-| `playable_v012_offline_20261012_01` | Configured routing resolver, actual world/loadout, physical movement/jump and two-round lifecycle; `artifacts/playable_mech/playable_v012_offline_20261012_01/` |
-| `playable_v012_multiplayer_20261012_02` | Configured routing resolver, bidirectional owner movement/jump, seven canonical/convergence snapshots, 266 client rejections and two rounds; `artifacts/playable_mech/playable_v012_multiplayer_20261012_02/` |
+| `mech_v012_routing_20261012_01` | Import, real SceneLoader Host/direct Join/invite/+connect_lobby, fallback, pending-invite rejection and one-shot intents; `factory/artifacts/online_gameplay_routing/mech_v012_routing_20261012_01/` |
+| `mech_v012_offline_20261012_01` | Existing body/damage/native GAS/resources and automatic resource cadence; `game/artifacts/mech_body/mech_v012_offline_20261012_01/` |
+| `mech_v012_multiplayer_20261012_01` | Existing twelve-stage late-sync, damage, modifier/resource, 228 rejection and cleanup regression; `game/artifacts/mech_body/mech_v012_multiplayer_20261012_01/` |
+| `playable_v012_offline_20261012_01` | Configured routing resolver, actual world/loadout, physical movement/jump and two-round lifecycle; `game/artifacts/playable_mech/playable_v012_offline_20261012_01/` |
+| `playable_v012_multiplayer_20261012_02` | Configured routing resolver, bidirectional owner movement/jump, seven canonical/convergence snapshots, 266 client rejections and two rounds; `game/artifacts/playable_mech/playable_v012_multiplayer_20261012_02/` |
 
 The host moved X from -2 to -6.7999973; the client moved Z from 0 to -4.799999,
 with the other body stationary in each case. Both local jumps recorded one edge
@@ -176,11 +178,11 @@ behavior. They retain damage, resources, additive-effect coexistence, late sync,
 
 | Run ID | Result / preserved evidence |
 | --- | --- |
-| `mobility_import_20261012_01` | PASS; `artifacts/playable_mech/mobility_import_20261012_01/` |
-| `mech_mobility_offline_20261012_01` | PASS; `artifacts/mech_body/mech_mobility_offline_20261012_01/` |
-| `mech_mobility_multiplayer_20261012_01` | PASS; `artifacts/mech_body/mech_mobility_multiplayer_20261012_01/` |
-| `mobility_offline_20261012_01` | PASS; `artifacts/playable_mech/mobility_offline_20261012_01/` |
-| `mobility_multiplayer_20261012_01` | PASS; `artifacts/playable_mech/mobility_multiplayer_20261012_01/` |
+| `mobility_import_20261012_01` | PASS; `game/artifacts/playable_mech/mobility_import_20261012_01/` |
+| `mech_mobility_offline_20261012_01` | PASS; `game/artifacts/mech_body/mech_mobility_offline_20261012_01/` |
+| `mech_mobility_multiplayer_20261012_01` | PASS; `game/artifacts/mech_body/mech_mobility_multiplayer_20261012_01/` |
+| `mobility_offline_20261012_01` | PASS; `game/artifacts/playable_mech/mobility_offline_20261012_01/` |
+| `mobility_multiplayer_20261012_01` | PASS; `game/artifacts/playable_mech/mobility_multiplayer_20261012_01/` |
 
 All runtime runs reached complete, with no failed stage or retry. Result records
 verify frozen source/build, zero owned processes, restored APPDATA, deleted

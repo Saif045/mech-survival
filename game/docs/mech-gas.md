@@ -99,7 +99,7 @@ normal-profile investigation is needed.
 - Build passed with zero warnings/errors. Product suite: 50 passed (41 body/damage
   cases plus 9 pure GAS-input/snapshot cases); foundation suite: 73 passed.
   Commands used `--disable-build-servers -m:1 -p:UseSharedCompilation=false`.
-  Unit logs: `artifacts/mech_body/mech_gas_units_20261012_034951/`.
+  Unit logs: `game/artifacts/mech_body/mech_gas_units_20261012_034951/`.
 - Offline **PASS**: `mech_gas_teardown_offline_20261012_035827`, PID 26520.
   The real vendored ASC handled all three attributes, native capability tags,
   aggregate Mobility, Sensor destruction/replacement, all structural mutation
@@ -116,7 +116,7 @@ normal-profile investigation is needed.
   APPDATA and verified zero owned processes/objects. Multiplayer port 24873 was
   released. No engine/runtime errors occurred. Managed assembly SHA-256:
   `D4AB08C0E7CF640C8B9D2A014FCA9AF97B0D3D51E979F8BD4CBB832ACAC251C4`.
-  Evidence is under `artifacts/mech_body/<run_id>/`: contract, frozen hashes,
+  Evidence is under `game/artifacts/mech_body/<run_id>/`: contract, frozen hashes,
   stdout/stderr/engine logs and terminal result. No VM/Steam acceptance was needed.
 - Earlier multiplayer attempts remain preserved as **FAIL**:
   `mech_gas_multiplayer_20261012_035040` exposed probe peer detachment before awaited

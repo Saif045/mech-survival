@@ -90,7 +90,7 @@ restored APPDATA and frozen source/build hashes. No Steam/VM A/B is required.
 - Product suite: 41 passed (20 accepted body cases plus 21 damage/projection
   cases). Foundation suite: 73 passed. Both used
   `dotnet test <project> --disable-build-servers -m:1 -p:UseSharedCompilation=false`.
-  Logs: `artifacts/mech_body/mech_damage_units_20261012_031852/`.
+  Logs: `game/artifacts/mech_body/mech_damage_units_20261012_031852/`.
 - Offline **PASS**: `mech_damage_offline_20261012_031922`, PID 27152,
   `MECH_DAMAGE_OFFLINE_PASS`, `MECH_OFFLINE_PASS` and zero world objects.
   All offline assertions above completed with no engine/runtime errors.
@@ -105,7 +105,7 @@ restored APPDATA and frozen source/build hashes. No Steam/VM A/B is required.
   24873 was released. Managed assembly SHA-256:
   `687C2BB93E403D56EF87ED14868E699E11BF60DD0848F394A218983E90DAEC6E`.
   Their `contract.json`, `result.json`, frozen hashes and stdout/stderr/engine logs
-  are preserved in `artifacts/mech_body/<run_id>/`. Command-level execution
+  are preserved in `game/artifacts/mech_body/<run_id>/`. Command-level execution
   permission was used; no normal user profile, VM or Steam session was used.
 - `git diff --check` and the game-owned runner's PowerShell parser check passed.
 

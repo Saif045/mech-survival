@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using GameFactory.Diagnostics;
-using GameFactory.Gameplay.Gas;
-using GameFactory.Networking.Netfox.Player3D;
 using GameFactory.Networking.Objects;
 using GameFactory.Networking.Peers;
 
@@ -19,18 +17,32 @@ public partial class PlayerInteractor : Node
     [Export(PropertyHint.Range, "0.5,10,0.1")]
     public float InteractionRange { get; set; } = 2.75f;
 
+    /// <summary>Required explicit actor policy, relative to this component.</summary>
+    [Export] public NodePath PermissionPath { get; set; } = new("");
+
+    /// <summary>Optional interact-action/nearest-candidate convenience.</summary>
+    [Export] public bool EnableDefaultInput { get; set; } = true;
+
     private NetworkObject _player = null!;
     private Node3D _playerHost = null!;
+    private IInteractionPermission? _permission;
 
     public override void _Ready()
     {
         _playerHost = GetParent<Node3D>();
         _player = _playerHost.GetNode<NetworkObject>("NetworkObject");
+        _permission = ResolvePermission();
     }
+
+    private IInteractionPermission ResolvePermission() =>
+        !PermissionPath.IsEmpty && GetNodeOrNull<Node>(PermissionPath) is IInteractionPermission policy
+            ? policy
+            : throw new InvalidOperationException("PlayerInteractor requires PermissionPath to reference an IInteractionPermission node.");
 
     public override void _Process(double delta)
     {
-        if (!IsLocalOwner() || (_playerHost as NetworkPlayer3D)?.IsIncapacitated == true || !Input.IsActionJustPressed("interact"))
+        if (!EnableDefaultInput || !IsLocalOwner() || !Input.IsActionJustPressed("interact") || _permission is null ||
+            !_permission.CanRequestInteraction(_player, _player.OwnerPeerId))
             return;
 
         NetworkObject? target = FindLocalCandidate();
@@ -43,21 +55,33 @@ public partial class PlayerInteractor : Node
             return;
         }
 
+        RequestInteraction(target.Id);
+    }
+
+    /// <summary>
+    /// Owner-side semantic entry. Game input/selection supplies only the target
+    /// identity; the server validates independently of local checks.
+    /// </summary>
+    public void RequestInteraction(NetworkObjectId target)
+    {
+        if (!IsLocalOwner() || _permission is null ||
+            !_permission.CanRequestInteraction(_player, _player.OwnerPeerId)) return;
+
         Log("requested", new Dictionary<string, string?>
         {
-            ["target_network_object_id"] = target.Id.ToString()
+            ["target_network_object_id"] = target.ToString()
         });
 
         if (Multiplayer.IsServer())
         {
-            HandleRequest(PeerId.Server, target.Id);
+            HandleRequest(PeerId.Server, CreateIdOrReject(target.Value));
             return;
         }
 
         RpcId(
             PeerId.Server.Value,
             MethodName.RequestInteractionRpc,
-            target.Id.Value);
+            target.Value);
     }
 
     [Rpc(
@@ -112,7 +136,11 @@ public partial class PlayerInteractor : Node
             return;
         }
 
-        if (_playerHost.GetNode<NetworkGasComponent>("NetworkGasComponent").RejectIncapacitated(sender, "interact")) return;
+        if (_permission is null || !_permission.CanRequestInteraction(_player, sender))
+        {
+            Reject(sender, targetId.Value, "actor_permission_denied");
+            return;
+        }
         if (targetId.Value == _player.Id)
         {
             Reject(sender, targetId.Value, "self_interaction");
@@ -127,9 +155,6 @@ public partial class PlayerInteractor : Node
         }
 
         IInteractable? interactable = ResolveInteractable(target.Host);
-        if (interactable is PlayerReviveInteractable)
-            Log("revive_requested", new Dictionary<string, string?>
-            { ["requesting_peer_id"] = sender.ToString(), ["target_network_object_id"] = targetId.Value.ToString() });
         if (interactable is null || target.Host is not Node3D targetHost)
         {
             Reject(sender, targetId.Value, "target_not_interactable");
@@ -201,7 +226,7 @@ public partial class PlayerInteractor : Node
     }
 
     private bool IsLocalOwner() =>
-        _player.IsBound &&
+        _player is not null && _player.IsBound && Multiplayer.HasMultiplayerPeer() &&
         _player.OwnerPeerId.Value == Multiplayer.GetUniqueId();
 
     private void Reject(
@@ -223,8 +248,6 @@ public partial class PlayerInteractor : Node
                 System.Globalization.CultureInfo.InvariantCulture);
         }
         Log("rejected", fields);
-        if (_player.World.TryGet(targetId, out NetworkObject? target) && target?.Host is Node host && ResolveInteractable(host) is PlayerReviveInteractable)
-            Log("revive_rejected", fields);
     }
 
     private void Log(

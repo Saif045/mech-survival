@@ -1,0 +1,16 @@
+[gd_scene load_steps=6 format=3]
+[ext_resource type="Script" path="res://factory/shell/OnlineGameplayWorld.cs" id="1"]
+[ext_resource type="PackedScene" path="res://factory/networking/world/network_world.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://factory/sandbox/shell/round_composition/player.tscn" id="3"]
+[ext_resource type="Script" path="res://factory/sandbox/shell/round_composition/RoundFixtureSpawnData.cs" id="4"]
+[ext_resource type="Script" path="res://factory/sandbox/shell/round_composition/RoundFixtureContent.cs" id="5"]
+[node name="Gameplay" type="Node3D"]
+script = ExtResource("1")
+PlayerScene = ExtResource("3")
+RoundContentPath = NodePath("GameContent")
+SpawnDataProviderPath = NodePath("SpawnRules")
+[node name="NetworkWorld" parent="." instance=ExtResource("2")]
+[node name="GameContent" type="Node" parent="."]
+script = ExtResource("5")
+[node name="SpawnRules" type="Node" parent="."]
+script = ExtResource("4")

@@ -16,7 +16,7 @@ default_bus_layout="res://factory/shell/default_bus_layout.tres"
 GameplayCueManager="*res://addons/GodotGAS/managers/gameplay_cue_manager.gd"
 MaaackStartUp="*res://addons/maaacks_game_template/base/nodes/config/start_up/start_up.tscn"
 SteamPlatform="*res://factory/steam/steam_platform.tscn"
-GameShell="*res://factory/shell/game_shell.tscn"
+GameShell="*res://game/shell/game_shell.tscn"
 SceneLoader="*res://addons/maaacks_game_template/base/nodes/autoloads/scene_loader/scene_loader.tscn"
 ProjectMusicController="*res://addons/maaacks_game_template/base/nodes/autoloads/music_controller/project_music_controller.tscn"
 ProjectUISoundController="*res://addons/maaacks_game_template/base/nodes/autoloads/ui_sound_controller/project_ui_sound_controller.tscn"
@@ -192,3 +192,11 @@ rollback/full_state_interval=24
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[godot_gas]
+
+resources/attributes/draft_configuration_file="res://game/mech/gas/resources/attributes_draft.cfg"
+resources/attributes/output_directory="res://game/mech/gas/resources/attributes/"
+resources/cues/registry_file="res://game/mech/gas/resources/cue_registry.tres"
+resources/tags/registry_file="res://game/mech/gas/resources/tag_registry.tres"
+resources/tags/generated_script="res://game/mech/gas/resources/gameplay_tags.gd"

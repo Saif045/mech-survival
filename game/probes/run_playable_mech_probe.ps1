@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if ($RunId -notmatch '^[a-zA-Z0-9_-]+$') { throw 'RunId must be a simple directory label.' }
-$evidence = Join-Path $repo "artifacts/playable_mech/$RunId"
+$evidence = Join-Path $repo "game/artifacts/playable_mech/$RunId"
 if (Test-Path -LiteralPath $evidence) { throw 'Use a unique run ID; existing evidence is immutable.' }
 New-Item -ItemType Directory -Path $evidence -Force | Out-Null
 $owned = @()
@@ -56,6 +56,13 @@ function Start-Probe([string]$Role, [string[]]$Extra) {
 }
 try {
     if (-not (Test-Path -LiteralPath $Godot)) { throw 'Godot executable is missing.' }
+    if ($Mode -eq 'Import') {
+        $editors = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'Godot%'" | Where-Object {
+            $_.CommandLine -match '(?:^|\s)--editor(?:\s|$)' -and
+            $_.CommandLine.Replace('/', '\').IndexOf($repo, [StringComparison]::OrdinalIgnoreCase) -ge 0
+        })
+        if ($editors.Count) { throw 'Close the Godot editor for this checkout before Import: concurrent editor imports can lock the GodotSteam temporary DLL copy.' }
+    }
     if (-not (Test-Path -LiteralPath "$repo/.godot/mono/temp/bin/Debug/GameFactory.dll")) { throw 'Build the project before launching.' }
     if ($Mode -eq 'Multiplayer' -and (Get-NetUDPEndpoint -LocalPort 24874 -ErrorAction SilentlyContinue)) { throw 'Probe port is occupied; no existing process will be killed.' }
     if (-not $profile.StartsWith($repo + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'Profile is outside the repository.' }

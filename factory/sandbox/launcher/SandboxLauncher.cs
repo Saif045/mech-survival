@@ -1,0 +1,70 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using GameFactory.Diagnostics;
+
+namespace GameFactory.Sandbox.Launcher;
+
+/// <summary>
+/// Development-only main scene that selects a packed sandbox by a stable command-line name.
+/// Exported Godot binaries intentionally do not permit arbitrary --scene path overrides.
+/// </summary>
+public partial class SandboxLauncher : Node
+{
+    private const string DefaultTarget = "steam-gameplay";
+
+    private static readonly IReadOnlyDictionary<string, string> ScenePaths =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["steam"] = "res://factory/sandbox/steam/steam_probe.tscn",
+            ["steam-gameplay"] = "res://factory/sandbox/steam/steam_gameplay_probe.tscn",
+            ["netfox"] = "res://factory/sandbox/netfox/netfox_time_probe.tscn",
+            ["netfox-gameplay"] = "res://factory/sandbox/netfox/netfox_gameplay_probe.tscn",
+            ["netfox-player-3d"] = "res://factory/sandbox/netfox/netfox_player_3d_probe.tscn",
+            ["gas-interop"] = "res://factory/sandbox/gas/godot_gas_interop_probe.tscn",
+            ["round-reuse"] = "res://factory/sandbox/shell/round_reuse_probe.tscn",
+            ["custom-player-lifecycle"] = "res://factory/sandbox/shell/custom_player_lifecycle_probe.tscn",
+            ["round-rpc"] = "res://factory/sandbox/shell/round_rpc_probe.tscn"
+        };
+
+    public override void _Ready()
+    {
+        GameLog.EnsureInitialized();
+        BuildIdentity.LogCurrent();
+        string target = ReadTarget(
+            OS.GetCmdlineArgs()
+                .Concat(OS.GetCmdlineUserArgs()));
+        if (target == "shell-readiness")
+        {
+            GetTree().Root.CallDeferred(Node.MethodName.AddChild,
+                new GameFactory.Sandbox.Shell.ShellReadinessProbe { Name = "ShellReadinessProbe" });
+            GetTree().CallDeferred(SceneTree.MethodName.ChangeSceneToFile, "res://factory/shell/main_menu.tscn");
+            return;
+        }
+        if (!ScenePaths.TryGetValue(target, out string? scenePath))
+        {
+            GD.PushError(
+                $"[launcher] Unknown --run target '{target}'. " +
+                $"Available targets: {string.Join(", ", ScenePaths.Keys)}.");
+            GetTree().Quit(2);
+            return;
+        }
+
+        GD.Print($"[launcher] --run={target} -> {scenePath}");
+        GetTree().CallDeferred(
+            SceneTree.MethodName.ChangeSceneToFile,
+            scenePath);
+    }
+
+    private static string ReadTarget(IEnumerable<string> arguments)
+    {
+        const string prefix = "--run=";
+        string? argument = arguments.FirstOrDefault(
+            value => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+        return argument is null
+            ? DefaultTarget
+            : argument[prefix.Length..];
+    }
+}

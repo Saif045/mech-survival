@@ -92,14 +92,14 @@ Task 04 acceptance passed on 2026-10-12:
 
 - `dotnet build GameFactory.csproj --disable-build-servers -m:1 -p:UseSharedCompilation=false`:
   zero warnings/errors. Product tests: 67 passed; foundation tests: 73 passed,
-  zero failures/skips. Logs: `artifacts/mech_body/mech_resources_units_20261012_044440/`.
+  zero failures/skips. Logs: `game/artifacts/mech_body/mech_resources_units_20261012_044440/`.
   PowerShell parsing and
   `git diff --check` passed.
-- Offline: `artifacts/mech_body/mech_resources_offline_20261012_044459/`.
+- Offline: `game/artifacts/mech_body/mech_resources_offline_20261012_044459/`.
   Native ASC resource mutation, actual cooling cost, capacity/rate damage,
   hard-tag transitions, automatic server cadence, modifier preservation and
   stable no-churn assertions passed.
-- Multiplayer: `artifacts/mech_body/mech_resources_multiplayer_20261012_044510/`.
+- Multiplayer: `game/artifacts/mech_body/mech_resources_multiplayer_20261012_044510/`.
   All twelve stages passed with native client mirrors and 228 rejected mutations.
   Late sync received Energy 8.25 / Heat 1.5. Power damage clamped Energy to 5;
   the next step under damaged cooling produced Energy 4 / Heat 6. Depletion/

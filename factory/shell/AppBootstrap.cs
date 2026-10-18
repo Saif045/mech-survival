@@ -8,7 +8,7 @@ namespace GameFactory.Shell;
 public partial class AppBootstrap : Node
 {
     private const string MainMenuScenePath = "res://factory/shell/main_menu.tscn";
-    private const string SandboxLauncherScenePath = "res://sandbox/launcher/sandbox_launcher.tscn";
+    private const string SandboxLauncherScenePath = "res://factory/sandbox/launcher/sandbox_launcher.tscn";
 
     public override void _Ready()
     {

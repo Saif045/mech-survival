@@ -47,7 +47,7 @@ Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
 problem with the routed upstream repair workflow.
 
 The normal player prefab is the game-owned playable mech, composed through the
-released PlayerScene seam and v0.1.2's configured gameplay routing.
+PlayerScene seam and configured gameplay routing. See [consumer migration](docs/v0.2-consumer-migration.md) for game-owned shell, spawn and GAS resource composition.
 Read [the playable contract](docs/playable-mech.md)
 for player/input/movement work. PlayerLifecycle tracks the initial operated body;
 player identity remains distinct from body identity. Generic mech bodies stay
@@ -63,8 +63,8 @@ movement must not independently calculate leg output or mutate GAS. Jump and
 resource costs remain separate. Keep camera/color outside rollback.
 
 Build and test commands are in the contract. Every runtime attempt follows
-`docs/testing-protocol.md` and `docs/runtime-test-operator.md`. After a terminal
-failure, follow `docs/investigation-protocol.md`; retries need explicit approval.
+`factory/docs/testing-protocol.md` and `factory/docs/runtime-test-operator.md`. After a terminal
+failure, follow `factory/docs/investigation-protocol.md`; retries need explicit approval.
 Required runtime acceptance must pass before committing this layer.
 
 Agent-launched Godot validation uses a disposable writable `APPDATA` profile.

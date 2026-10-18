@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://cxmekprobe01"]
+[gd_scene format=3 uid="uid://cxmekprobe01"]
 
-[ext_resource type="Script" path="res://game/probes/MechBodyProbe.cs" id="1"]
-[ext_resource type="Script" path="res://factory/networking/world/NetworkWorld.cs" id="2"]
+[ext_resource type="Script" uid="uid://dxjs4rol0ig0g" path="res://game/probes/MechBodyProbe.cs" id="1"]
+[ext_resource type="Script" uid="uid://csb3i5ho8rjk2" path="res://factory/networking/world/NetworkWorld.cs" id="2"]
 
-[node name="MechBodyProbe" type="Control"]
+[node name="MechBodyProbe" type="Control" unique_id=79080251]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,5 +12,5 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="NetworkWorld" type="Node" parent="."]
+[node name="NetworkWorld" type="Node" parent="." unique_id=320677654]
 script = ExtResource("2")

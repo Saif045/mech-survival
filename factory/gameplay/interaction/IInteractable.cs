@@ -5,9 +5,10 @@ using GameFactory.Networking.Peers;
 namespace GameFactory.Gameplay.Interaction;
 
 /// <summary>
-/// The small server-side contract for an object a player can ask to use.
-/// Implementations are invoked only after <see cref="PlayerInteractor"/>
-/// has resolved and validated the request on the server.
+/// The small contract for an object a player can ask to use. CanInteract is a
+/// side-effect-free local availability hint during candidate selection; its
+/// server invocation is decisive. Interact is dispatched only after the
+/// server resolves and validates the request.
 /// </summary>
 public interface IInteractable
 {
@@ -17,8 +18,10 @@ public interface IInteractable
 }
 
 /// <summary>
-/// Trusted data assembled by the server for one interaction request. It
-/// deliberately contains no client-provided transform or target state.
+/// Locally assembled availability data or server-assembled request data.
+/// Only the server invocation is authoritative; no transform/state is sent
+/// by the client. ServerPlayerPosition retains its name for compatibility,
+/// but contains the local actor position during local candidate selection.
 /// </summary>
 public readonly record struct InteractionContext(
     PeerId RequestingPeerId,

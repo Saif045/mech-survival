@@ -1,100 +1,14 @@
-# GameFactory Agent Guide
+# Repository ownership router
 
-GameFactory is a small-session online co-op foundation. Shared gameplay is
-server-authoritative by default. Build small, composable technical boundaries
-that are justified by playable slices; do not build a second engine, a generic
-command bus, transport abstraction, or a Netfox wrapper without multiple real
-uses.
+- Work under `factory/**`: read [factory/AGENTS.md](factory/AGENTS.md), then the
+  nearest scoped guide. GameFactory maintains all first-party foundation,
+  starter, verification, tooling, documentation and evidence here.
+- Work under `game/**`: read `game/AGENTS.md` when present. The downstream game
+  owns Mech-Survival behavior, content, probes, tests and product documentation.
+- Shared root integration changes: read the relevant factory and game guides
+  and reconcile both requirements. Root project/solution/export configuration
+  is shared integration; `addons/**` and `third_party/**` are vendor material.
 
-## Universal rules
-
-- Keep reusable code in `factory/` and experiments in `sandbox/`.
-- Preserve the distinction between Steam/account ID, transient Godot `PeerId`,
-  session `PlayerId`, runtime `NetworkObjectId`, and represented-owner
-  metadata (`NetworkObject.OwnerPeerId`). A peer ID is not durable identity.
-- Clients do not authoritatively spawn players. Never map `OwnerPeerId`
-  recursively to a player root's Godot authority.
-- Prefer existing Godot and Netfox primitives. Compose normal nodes and focused
-  components instead of concealing ownership behind a framework.
-- Keep presentation-only data (including owner colors) out of rollback state.
-- Preserve unrelated working-tree changes. Stage only task files, review the
-  diff, and use focused commits. Push a commit when the user requests it.
-- A normal feature task implements one coherent contract and validates it.
-  Investigation/hardening starts only after an attempt is terminal, freezes a
-  build, asks one narrow question, and changes one variable at a time,
-  If the task requires runtime/manual acceptance, do not commit or push the
-  implementation until that required acceptance has actually run and passed.
-  A build/unit/headless pass is not a substitute for required runtime evidence.
-
-## Upstream and downstream ownership
-
-- GameFactory is the canonical upstream for reusable framework changes; in a
-  consumer game, prefer game-specific implementation under `game/`.
-- Do not permanently fork GameFactory-owned paths. Temporary downstream bug
-  branches may edit them for reproduction/diagnosis; reusable fixes must move
-  upstream before permanent downstream integration through an official release.
-- Merge official release tags and preserve ancestry: do not squash release
-  merges or replace them with release cherry-picks; do not routinely merge
-  upstream `master`. Keep the consumer's permanent `gamefactory` remote.
-- Manually reconcile shared integration files, preserving game, framework and
-  dependency requirements; do not mechanically choose `ours` or `theirs`.
-- When ownership is unclear, keep behavior in the game unless a reusable
-  contract is clear. See `docs/consuming-gamefactory.md` for ownership zones,
-  bootstrap, updates and the downstream reproduction/upstream repair workflow.
-
-## Task routing
-
-Read this file, then only the nearest relevant scoped guide and any document it
-explicitly routes to. Do not read every architecture document by default.
-
-| Task                                                   | Read next                                                                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Current maturity, known blockers, recent evidence      | `docs/current-state.md`                                                                    |
-| Network objects, player lifecycle, identity, authority | `factory/networking/AGENTS.md`                                                             |
-| Netfox or rollback player work                         | `factory/networking/netfox/AGENTS.md`, then `docs/netfox-integration.md`                   |
-| Gameplay interaction or replicated game state          | `factory/gameplay/AGENTS.md`                                                               |
-| Steam session, lobby, native peer, or adapter work     | `factory/steam/AGENTS.md`, then `docs/steam-integration.md`                                |
-| Host/VM A/B execution or runtime investigation         | `tools/ab_test/AGENTS.md`, `docs/testing-protocol.md`, and `docs/runtime-test-operator.md` |
-| Architecture/ownership boundary change                 | `docs/architecture.md`, relevant ADRs, and `docs/module-map.md`                            |
-| Investigation after a terminal test                    | `docs/investigation-protocol.md`                                                           |
-
-## Context budget
-
-- For normal implementation work, treat the task prompt and repository
-  documentation as authoritative; do not read planner/chat history unless the
-  task explicitly requests it or a genuine architectural ambiguity remains.
-- Default context is this guide, the nearest applicable scoped guide,
-  `docs/current-state.md`, task-named files, and implementation files found by
-  targeted search. Do not recursively read all docs, historical A/B evidence,
-  unrelated subsystem guides, or unrelated code.
-- For bug fixes, add only failing evidence; for validation, add only the
-  implementation and current run evidence. Wider reading is reserved for
-  research or design work that needs it.
-- Search before opening a large file. Read only the relevant section.
-- Extract a narrow event timeline from logs with `rg`, `Select-String`,
-  `Get-Content -Tail`, or a bounded time range; do not ingest whole artifacts.
-- Compare a known-good and failing run by relevant event sequence, not by
-  dumping complete JSONL or engine logs.
-- Prefer `git diff <known-good>..HEAD -- <scope>` to rediscovering decisions
-  already documented in the scoped guide.
-- Do not investigate unrelated warnings or inspect outside a file scope unless
-  an actual dependency requires it.
-
-At completion, report the change, important decisions or deviations,
-validation, and commit SHA concisely.
-
-## Validation and runtime
-
-Run the narrowest relevant validation and never describe an unrun check as
-passing. For source changes, include an appropriate compile/test and
-`git diff --check`; for exports, validate the actual manifest and dependencies.
-
-Every Godot, Steam, VM, or process test must follow the routed test protocols:
-define assertions/timeouts, preflight, clean state, dependency-ordered launch,
-terminal PASS/FAIL/BLOCKED, preserved evidence, teardown, and verified host/VM
-cleanup. A window opening is startup evidence, not success.
-
-Diagnose bottom-up: export/dependencies -> Steam lobby -> native Steam peer ->
-Godot connection -> GameFactory lifecycle -> Netfox -> gameplay. A failure at
-an earlier layer is not evidence against a later layer; a harness failure can
-also be an observability failure, so inspect structured evidence.
+For ambiguous placement, read [ownership](factory/docs/ownership.md). Keep agent
+context narrow: do not recursively load every guide, starter document or
+historical acceptance record. Preserve unrelated changes; use focused commits.
