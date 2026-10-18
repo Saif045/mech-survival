@@ -15,7 +15,7 @@ semantics are introduced.
   auto-initializes; repeated calls return false. Invoke after configuring a fresh
   body. Resources otherwise start depleted/cold.
 - Heat is bounded to `[0,100]`. Server `SetExternalHeatLoad` supplies nonnegative
-  heat units/second; no environment or activity system exists yet.
+  heat units/second. The parasite adds a separate, source-owned Heat contribution.
 - Cooling rate is canonical CoolingCapacity times CoolingRateScale. Cooling is
   limited by available Heat and Energy; actual heat removed times
   CoolingEnergyCostPerHeat is charged. Cost must be finite and strictly positive.
@@ -34,6 +34,14 @@ represented Heat, and allows cooling to lower a previously maximum Heat state.
 Double intermediates avoid overflow for finite float-sized inputs; results use
 float values without display rounding. NaN/infinite/negative inputs reject;
 Heat setup above 100 and zero-cost cooling configuration also reject.
+
+The [parasite](parasite.md) adds one concrete source-owned contribution on
+MechGasComponent: ParasiteEnergyDrain and ParasiteHeatLoad. Parasite drain is
+charged after base drain and before cooling; ExternalEnergySpent reports it
+separately without changing BaseEnergySpent's meaning. Parasite Heat adds to the
+existing external Heat before saturation/cooling. Optional zero inputs preserve
+the previous policy result. No load setter changes current Energy/Heat; clearing
+a matching source only stops future parasite costs and preserves external Heat.
 
 ## Authority, cadence and GAS
 

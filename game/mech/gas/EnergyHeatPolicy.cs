@@ -38,7 +38,7 @@ public readonly record struct EnergyHeatSettings
 }
 
 public readonly record struct EnergyHeatStepResult(EnergyHeatState State, float BaseEnergySpent,
-    float HeatAdded, float HeatRemoved, float CoolingEnergySpent);
+    float HeatAdded, float HeatRemoved, float CoolingEnergySpent, float ExternalEnergySpent = 0);
 
 /// <summary>Pure arithmetic only. Canonical current resources live in the ASC.</summary>
 public static class EnergyHeatPolicy
@@ -53,21 +53,24 @@ public static class EnergyHeatPolicy
         return new(powerCapacity, state.Heat);
     }
     public static EnergyHeatStepResult Step(EnergyHeatState state, float powerCapacity, float coolingCapacity,
-        float externalHeatLoad, float delta, EnergyHeatSettings settings)
+        float externalHeatLoad, float delta, EnergyHeatSettings settings, float externalEnergyDrain = 0, float additionalHeatLoad = 0)
     {
         Nonnegative(powerCapacity, nameof(powerCapacity)); Nonnegative(coolingCapacity, nameof(coolingCapacity));
         Nonnegative(externalHeatLoad, nameof(externalHeatLoad)); Nonnegative(delta, nameof(delta)); settings.Validate();
+        Nonnegative(externalEnergyDrain, nameof(externalEnergyDrain)); Nonnegative(additionalHeatLoad, nameof(additionalHeatLoad));
         // Wider intermediates keep even finite float-sized rates/deltas from overflowing.
         double energy = Math.Min(state.Energy, powerCapacity);
         double baseSpent = Math.Min(energy, (double)settings.BaseEnergyDrainPerSecond * delta);
         energy -= baseSpent;
+        double externalSpent = Math.Min(energy, (double)externalEnergyDrain * delta);
+        energy -= externalSpent;
         // Incoming heat saturates at the represented thermal maximum before thermal work.
-        double heat = Math.Min(100, state.Heat + (double)externalHeatLoad * delta);
+        double heat = Math.Min(100, state.Heat + ((double)externalHeatLoad + additionalHeatLoad) * delta);
         double added = heat - state.Heat;
         double removed = Math.Min(heat, Math.Min((double)coolingCapacity * settings.CoolingRateScale * delta,
             energy / settings.CoolingEnergyCostPerHeat));
         double cost = removed * settings.CoolingEnergyCostPerHeat;
         return new(new((float)Math.Clamp(energy - cost, 0, powerCapacity), (float)Math.Clamp(heat - removed, 0, 100)),
-            (float)baseSpent, (float)added, (float)removed, (float)cost);
+            (float)baseSpent, (float)added, (float)removed, (float)cost, (float)externalSpent);
     }
 }

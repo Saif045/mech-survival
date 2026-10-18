@@ -52,6 +52,10 @@ initialization/processes/initialize_on_startup=false
 
 [input]
 
+purge_pulse={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":84,"unicode":116)]
+}
 hack_1={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":49,"unicode":49)]

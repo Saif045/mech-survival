@@ -4,14 +4,16 @@ param(
     [switch]$FieldParts,
     [switch]$Service,
     [switch]$Salvage,
+    [switch]$Parasite,
     [string]$RunId = ('playable_' + (Get-Date -Format 'yyyyMMdd_HHmmss')),
     [string]$Godot = 'D:\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64\Godot_v4.7.1-stable_mono_win64_console.exe'
 )
 $ErrorActionPreference = 'Stop'
-if (([int][bool]$FieldParts + [int][bool]$Service + [int][bool]$Salvage) -gt 1) { throw 'Select only one focused mode.' }
+if (([int][bool]$FieldParts + [int][bool]$Service + [int][bool]$Salvage + [int][bool]$Parasite) -gt 1) { throw 'Select only one focused mode.' }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 if ($RunId -notmatch '^[a-zA-Z0-9_-]+$') { throw 'RunId must be a simple directory label.' }
-$evidence = Join-Path $repo "game/artifacts/playable_mech/$RunId"
+$artifactKind = if ($Parasite) { 'parasite' } else { 'playable_mech' }
+$evidence = Join-Path $repo "game/artifacts/$artifactKind/$RunId"
 if (Test-Path -LiteralPath $evidence) { throw 'Use a unique run ID; existing evidence is immutable.' }
 New-Item -ItemType Directory -Path $evidence -Force | Out-Null
 $owned = @()
@@ -44,7 +46,7 @@ function Get-FrozenState {
 # one leg, native +0.5 modifier, damage with modifier retained, capability gate
 # with positive modifier value, zero and restored setup. Resources/jump unchanged.
 # Participants are test-owned local Godot processes only. No VM or Steam session.
-@{ salvage = [bool]$Salvage; service = [bool]$Service; field_parts = [bool]$FieldParts; assertions = $(if ($Salvage) { 'normal neutral machine/reward preview; host/client real interaction and four-symbol success; exact reward references/IDs released once; carry/install through field service; hijack/forged/invalid/preview rejection; progress/state/loot convergence; wrong/timeout/range failures; all-state round cleanup and fresh machine/reward IDs' } elseif ($Service) { 'host/client detach, exact instance/id transfer, reinstall, replace, incompatible/forged/invalid/empty rejection, canonical body/GAS convergence, measured Mobility movement, Energy/Heat preservation, carry reconciliation, reset/fresh identities/cleanup' } elseif ($FieldParts) { 'two real loose parts; projection and server instance; host pickup before client observation; anchor follow; one-item capacity; both owner request paths; stable IDs/drop transforms; client guards; reset and fresh identities' } else { 'playable mobility regression' }); mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
+@{ parasite = [bool]$Parasite; salvage = [bool]$Salvage; service = [bool]$Service; field_parts = [bool]$FieldParts; assertions = $(if ($Parasite) { 'normal lurking parasite; semantic automatic attachment; stable separate identity/anchor; native additive resource pressure; late attachment observation; self and both teammate directions; wrong/timeout retry; anti-mash; forged/hijack/resource guards; no restoration; all-state reset/fresh IDs; salvage/field/body regression' } elseif ($Salvage) { 'normal neutral machine/reward preview; host/client real interaction and four-symbol success; exact reward references/IDs released once; carry/install through field service; hijack/forged/invalid/preview rejection; progress/state/loot convergence; wrong/timeout/range failures; all-state round cleanup and fresh machine/reward IDs' } elseif ($Service) { 'host/client detach, exact instance/id transfer, reinstall, replace, incompatible/forged/invalid/empty rejection, canonical body/GAS convergence, measured Mobility movement, Energy/Heat preservation, carry reconciliation, reset/fresh identities/cleanup' } elseif ($FieldParts) { 'two real loose parts; projection and server instance; host pickup before client observation; anchor follow; one-item capacity; both owner request paths; stable IDs/drop transforms; client guards; reset and fresh identities' } else { 'playable mobility regression' }); mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
     timeout_seconds = 90; transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
     profile = $profile; profile_policy = 'Disposable APPDATA, restored and deleted after each run. Request command-level approval if sandbox access is insufficient.' } |
@@ -54,6 +56,7 @@ function Start-Probe([string]$Role, [string[]]$Extra) {
     if ($FieldParts -and $Mode -ne 'Import') { $Extra += '--field-parts' }
     if ($Service -and $Mode -ne 'Import') { $Extra += '--service' }
     if ($Salvage -and $Mode -ne 'Import') { $Extra += '--salvage' }
+    if ($Parasite -and $Mode -ne 'Import') { $Extra += '--parasite' }
     $arguments = @('--headless','--path',$repo,'--log-file',"$evidence/$Role.engine.log")
     if ($Mode -eq 'Import') { $arguments += @('--editor','--quit') }
     else { $arguments += @('res://game/probes/playable_mech_probe.tscn','--') + $Extra }
@@ -110,12 +113,12 @@ try {
         if (-not (Select-String -LiteralPath "$evidence/host.stdout.log" -Pattern 'PLAYABLE_SERVER_PASS' -Quiet)) { throw 'Server playable assertions did not complete.' }
         if (-not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'PLAYABLE_CLIENT_PASS' -Quiet)) { throw 'Client playable assertions did not complete.' }
         $observed = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'PLAYABLE_OBSERVED stage=')
-        if (-not $Salvage -and -not $Service -and -not $FieldParts -and $observed.Count -ne 7) { throw 'Expected seven canonical/converged snapshots with client guards.' }
+        if (-not $Parasite -and -not $Salvage -and -not $Service -and -not $FieldParts -and $observed.Count -ne 7) { throw 'Expected seven canonical/converged snapshots with client guards.' }
     }
     if ($FieldParts -and $Mode -ne 'Import') {
         if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'FIELD_ACCEPTANCE_PASS' -Quiet)) { throw 'Field acceptance missing.' }
     }
-    if (-not $Salvage -and -not $Service -and -not $FieldParts -and $Mode -ne 'Import') {
+    if (-not $Parasite -and -not $Salvage -and -not $Service -and -not $FieldParts -and $Mode -ne 'Import') {
         if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'MOBILITY_ACCEPTANCE_PASS cases=10' -Quiet)) { throw 'Mobility acceptance did not complete.' }
         if ($Mode -eq 'Multiplayer') {
             $mobility = @(Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern '^MOBILITY_OBSERVED stage=')
@@ -133,7 +136,11 @@ try {
         if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'SALVAGE_ACCEPTANCE_PASS' -Quiet)) { throw 'Salvage acceptance missing.' }
         if ($Mode -eq 'Multiplayer' -and -not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'SALVAGE_CLIENT_PASS' -Quiet)) { throw 'Client salvage acceptance missing.' }
     }
-    if (($FieldParts -or $Service -or $Salvage) -and $Mode -ne 'Import') {
+    if ($Parasite -and $Mode -ne 'Import') {
+        if (-not (Select-String -LiteralPath "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log" -Pattern 'PARASITE_ACCEPTANCE_PASS' -Quiet)) { throw 'Parasite acceptance missing.' }
+        if ($Mode -eq 'Multiplayer' -and -not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'PARASITE_CLIENT_PASS' -Quiet)) { throw 'Client parasite acceptance missing.' }
+    }
+    if (($FieldParts -or $Service -or $Salvage -or $Parasite) -and $Mode -ne 'Import') {
         $markers = @(Get-ChildItem -LiteralPath $evidence -Filter '*.stdout.log' | Select-String -Pattern 'PLAYABLE_CLEANUP objects=0')
         if ($markers.Count -ne $owned.Count) { throw 'World cleanup assertions missing.' }
     }

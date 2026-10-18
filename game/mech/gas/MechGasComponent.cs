@@ -14,6 +14,9 @@ public partial class MechGasComponent : Node
     private MechGasSnapshot? _lastMirror;
     private EnergyHeatSettings _resourceSettings = EnergyHeatSettings.Default;
     private float _externalHeatLoad;
+    public long ParasiteSourceId { get; private set; }
+    public float ParasiteEnergyDrain { get; private set; }
+    public float ParasiteHeatLoad { get; private set; }
     private double _resourceElapsed;
     private bool _resourceSimulationEnabled = true;
     private bool _energyInitialized;
@@ -100,6 +103,22 @@ public partial class MechGasComponent : Node
         RequireServer(); EnergyHeatPolicy.Nonnegative(unitsPerSecond, nameof(unitsPerSecond));
         _externalHeatLoad = unitsPerSecond;
     }
+    // One concrete parasite contribution; source identity protects against stale cleanup.
+    internal bool TrySetParasiteLoad(NetworkObjectId source, float energyDrain, float heatLoad)
+    {
+        RequireServer();
+        EnergyHeatPolicy.Nonnegative(energyDrain, nameof(energyDrain)); EnergyHeatPolicy.Nonnegative(heatLoad, nameof(heatLoad));
+        if (source.Value <= 0) throw new ArgumentOutOfRangeException(nameof(source));
+        if (ParasiteSourceId != 0) return false;
+        ParasiteSourceId = source.Value; ParasiteEnergyDrain = energyDrain; ParasiteHeatLoad = heatLoad;
+        return true;
+    }
+    internal void ClearParasiteLoad(NetworkObjectId source)
+    {
+        RequireServer();
+        if (ParasiteSourceId != source.Value) return;
+        ParasiteSourceId = 0; ParasiteEnergyDrain = 0; ParasiteHeatLoad = 0;
+    }
     public void ConfigureResources(EnergyHeatSettings settings)
     {
         RequireServer(); settings.Validate(); _resourceSettings = settings;
@@ -114,13 +133,14 @@ public partial class MechGasComponent : Node
         var current = ReadSnapshot();
         var previous = new EnergyHeatState(current.Energy, current.Heat);
         var result = EnergyHeatPolicy.Step(previous, current.PowerCapacity, current.CoolingCapacity,
-            _externalHeatLoad, delta, _resourceSettings);
+            _externalHeatLoad, delta, _resourceSettings, ParasiteEnergyDrain, ParasiteHeatLoad);
         if (result.State != previous) { _gas!.ApplyResources(result.State); Publish(); }
         return result;
     }
     public void ResetResourceState()
     {
         RequireServer(); _externalHeatLoad = 0; _resourceElapsed = 0;
+        ParasiteSourceId = 0; ParasiteEnergyDrain = 0; ParasiteHeatLoad = 0;
         _gas!.ApplyResources(default); Publish();
         // Initialization stays consumed: reset is not a gameplay recharge path.
     }
@@ -154,5 +174,6 @@ public partial class MechGasComponent : Node
         _gas = null;
         Snapshot = default; _baseline = null; _lastMirror = null;
         _externalHeatLoad = 0; _resourceElapsed = 0; _resourceSimulationEnabled = false; _energyInitialized = false;
+        ParasiteSourceId = 0; ParasiteEnergyDrain = 0; ParasiteHeatLoad = 0;
     }
 }

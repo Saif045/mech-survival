@@ -29,6 +29,14 @@ parts once through LooseMechPart; failure loses unreleased rewards without playe
 damage. Keep encounter state outside rollback and avoid generic enemy/minigame
 frameworks. World teardown must clear encounter timers and reward ownership.
 
+Read [parasite](docs/parasite.md) for automatic infection and self/co-op timing
+purge. Keep the parasite a separate server-owned object following a presentation
+anchor. One source-owned parasite load per mech composes with external Heat;
+clearing it must preserve current resources, structural values and native effects.
+Purge RPCs carry only a pulse; server timing/ownership/range decide the result.
+Abort retains infection/load, success/despawn clears it, and reset clears timers
+and source claims. The initial roster contains only SalvageMachine and Parasite.
+
 Only `NetworkMechBody` calls the pure mutable rules in networked gameplay.
 Consumers inspect its immutable `View`. Keep composition and condition out of
 Netfox rollback. Do not add client installation RPCs without a concrete
