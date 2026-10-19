@@ -16,47 +16,47 @@ public partial class MechServiceController : Node
     private PlayableMech _body = null!;
     private NetworkObject _actor = null!;
     private PlayerCarrier _carrier = null!;
-    private Label _label = null!;
 
     public override void _Ready()
     {
         _body = GetParent<PlayableMech>();
         _actor = _body.GetNode<NetworkObject>("NetworkObject");
         _carrier = _body.GetNode<PlayerCarrier>("PlayerCarrier");
-        _label = GetNode<Label>("HUD/SlotLabel");
-        _label.Visible = IsLocalOwner();
-        UpdateLabel();
+        BuildPanel();
     }
     public override void _Process(double delta)
     {
-        _label.Visible = IsLocalOwner();
-        if (!_label.Visible) return;
-        if (Input.IsActionJustPressed("service_next_slot"))
-        {
-            SelectedSlot = MechBody.Slots[((int)SelectedSlot + 1) % MechBody.Slots.Count];
-            UpdateLabel();
-        }
-        if (Input.IsActionJustPressed("service_part")) RequestService(SelectedSlot);
+        if (IsLocalOwner() && Input.IsActionJustPressed("mech_status")) SetPanelOpen(!PanelOpen);
+        RefreshPanel();
     }
-    private void UpdateLabel() => _label.Text = $"Service: {SelectedSlot}  |  J: next slot  K: detach / install carried part\nE: pick up  Q: drop";
     private bool IsLocalOwner() => _actor is not null && _actor.IsBound && Multiplayer.HasMultiplayerPeer() &&
         _actor.OwnerPeerId.Value == Multiplayer.GetUniqueId();
 
-    public void RequestService(MechSlot slot)
+    public void RequestInstall(MechSlot slot) => Request(slot, MechServiceIntent.Install);
+    public void RequestDetach(MechSlot slot) => Request(slot, MechServiceIntent.Detach);
+    private void Request(MechSlot slot, MechServiceIntent intent)
     {
         if (!IsLocalOwner()) return;
-        if (Multiplayer.IsServer()) TryService(PeerId.Server, slot);
-        else RpcId(PeerId.Server.Value, MethodName.RequestServiceRpc, (int)slot);
+        if (Multiplayer.IsServer()) TryService(PeerId.Server, slot, intent);
+        else RpcId(PeerId.Server.Value, intent == MechServiceIntent.Install ? MethodName.RequestInstallRpc : MethodName.RequestDetachRpc, (int)slot);
     }
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
-    private void RequestServiceRpc(int slot)
+    private void RequestInstallRpc(int slot)
     {
         if (!Multiplayer.IsServer()) return;
         long sender = Multiplayer.GetRemoteSenderId();
-        if (sender > 0) TryService(new PeerId(sender), (MechSlot)slot);
+        if (sender > 0) TryInstall(new PeerId(sender), (MechSlot)slot);
     }
-
-    internal bool TryService(PeerId sender, MechSlot slot)
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false, TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void RequestDetachRpc(int slot)
+    {
+        if (!Multiplayer.IsServer()) return;
+        long sender = Multiplayer.GetRemoteSenderId();
+        if (sender > 0) TryDetach(new PeerId(sender), (MechSlot)slot);
+    }
+    internal bool TryInstall(PeerId sender, MechSlot slot) => TryService(sender, slot, MechServiceIntent.Install);
+    internal bool TryDetach(PeerId sender, MechSlot slot) => TryService(sender, slot, MechServiceIntent.Detach);
+    private bool TryService(PeerId sender, MechSlot slot, MechServiceIntent intent)
     {
         if (!IsInsideTree() || !Multiplayer.IsServer()) throw new InvalidOperationException("Service requires the server.");
         if (!Enum.IsDefined(slot) || !_actor.IsBound || _body.IsQueuedForDeletion() ||
@@ -64,6 +64,18 @@ public partial class MechServiceController : Node
             !_actor.World.TryGet(_actor.Id, out var registered) || registered != _actor)
             return Result(false, slot, "invalid_actor_sender_or_slot");
 
+        if (intent == MechServiceIntent.Detach)
+        {
+            if (!MechServiceIntentPolicy.Allows(intent, false, _body.HasPart(slot), false)) return Result(false, slot, "empty_slot");
+            var detached = _body.DetachPart(slot)!;
+            try { LooseMechPart.Spawn(_actor.World, detached, ServiceDropTransform()); }
+            catch
+            {
+                if (!_body.AttachPart(slot, detached)) throw new InvalidOperationException("Failed to restore detached part after spawn failure.");
+                throw;
+            }
+            return Result(true, slot, "detached");
+        }
         LooseMechPart? incoming = null;
         foreach (var obj in _actor.World.Objects)
         {
@@ -73,24 +85,12 @@ public partial class MechServiceController : Node
                 return Result(false, slot, "invalid_carried_object");
             incoming = part;
         }
-        if (incoming is null)
-        {
-            if (_carrier.HasCarriedItem) return Result(false, slot, "carried_object_not_a_mech_part");
-            var detached = _body.DetachPart(slot);
-            if (detached is null) return Result(false, slot, "empty_slot");
-            try { LooseMechPart.Spawn(_actor.World, detached, ServiceDropTransform()); }
-            catch
-            {
-                if (!_body.AttachPart(slot, detached)) throw new InvalidOperationException("Failed to restore detached part after spawn failure.");
-                throw;
-            }
-            return Result(true, slot, "detached");
-        }
+        if (incoming is null) return Result(false, slot, "install_requires_carried_part");
 
         // Complete policy validation before any body/carry/world mutation.
         var instance = incoming.GetServerPart();
         incoming.Projection.ValidateInstance(instance, incoming.Catalog.Freeze());
-        if (!_carrier.HasCarriedItem || !_body.CanReplacePart(slot, instance))
+        if (!_carrier.HasCarriedItem || !MechServiceIntentPolicy.Allows(intent, true, _body.HasPart(slot), _body.CanReplacePart(slot, instance)))
             return Result(false, slot, "incompatible_or_unavailable_part");
         Transform3D drop = ServiceDropTransform();
         if (!incoming.Carry.TryRelease(_actor, drop)) return Result(false, slot, "release_rejected");

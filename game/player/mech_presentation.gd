@@ -6,8 +6,7 @@ func _ready() -> void:
 	var owner_id: int = get_parent().get_node("Input").get_multiplayer_authority()
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color.from_hsv(fposmod(owner_id * 0.61803398875, 1.0), 0.65, 0.9)
-	for mesh in $Visual.get_children():
-		mesh.material_override = material
+	$Visual/OwnerMarker.material_override = material
 	NetworkTime.after_tick_loop.connect(_copy_completed_simulation)
 
 func _exit_tree() -> void:

@@ -28,11 +28,17 @@ public partial class PlayableMechProbe
     }
     private async Task SelectServiceSlot(MechSlot slot)
     {
+        Service(LocalBody).SelectSlot(slot);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        Require(Service(LocalBody).SelectedSlot == slot, "Explicit slot selection failed.");
+    }
+    // Retained historical focused scenarios select an explicit intent locally.
+    private async Task ProbeService()
+    {
         var controller = Service(LocalBody);
-        for (int i = 0; i < 9 && controller.SelectedSlot != slot; i++) await Pulse("service_next_slot");
-        Require(controller.SelectedSlot == slot, "Semantic slot selection failed.");
-        Require(controller.GetNode<Label>("HUD/SlotLabel").Visible &&
-            controller.GetNode<Label>("HUD/SlotLabel").Text.Contains(slot.ToString()), "Owner selection feedback missing.");
+        if (LocalBody.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem) controller.RequestInstall(controller.SelectedSlot);
+        else controller.RequestDetach(controller.SelectedSlot);
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
     }
     private async Task PickupServicePart(MechPartId id)
     {
@@ -77,18 +83,18 @@ public partial class PlayableMechProbe
         if (!offline) await ServiceStage(201);
         await ServiceMeasure("pristine", 2);
         await SelectServiceSlot(MechSlot.LeftLeg);
-        await Pulse("service_part");
+        await ProbeService();
         Require(!host.HasPart(MechSlot.LeftLeg), "Host semantic service did not detach leg.");
         var detached = LoosePart(original.Id); var detachedObject = detached.NetworkObject.Id;
         Require(ReferenceEquals(original, detached.GetServerPart()) && detached.Projection.Condition == 1, "Detach reconstructed the part.");
         ServiceGas(host, 1);
         string unchanged = host.Composition + host.GasState + FieldCapture();
-        Require(!controller.TryService(new(1), MechSlot.LeftLeg) && !controller.TryService(new(1), (MechSlot)99), "Empty/invalid slot accepted.");
+        Require(!controller.TryDetach(new(1), MechSlot.LeftLeg) && !controller.TryDetach(new(1), (MechSlot)99), "Empty/invalid slot accepted.");
         Require(unchanged == host.Composition + host.GasState + FieldCapture(), "Rejected service changed state.");
         if (!offline) await ServiceStage(202);
         await ServiceMeasure("detached", 1);
         await PickupServicePart(original.Id);
-        await Pulse("service_part");
+        await ProbeService();
         await Until(() => !_world.TryGet(detachedObject, out _));
         Require(ReferenceEquals(original, host.GetServerPart(MechSlot.LeftLeg)) && !host.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem,
             "Reinstall lost instance or carrier capacity.");
@@ -96,7 +102,7 @@ public partial class PlayableMechProbe
         if (!offline) await ServiceStage(203);
         await ServiceMeasure("reinstalled", 2);
         await PickupServicePart(fieldInstance.Id);
-        await Pulse("service_part");
+        await ProbeService();
         await Until(() => !_world.TryGet(fieldObject, out _));
         Require(ReferenceEquals(fieldInstance, host.GetServerPart(MechSlot.LeftLeg)) &&
             ReferenceEquals(original, LoosePart(original.Id).GetServerPart()) && LoosePart(original.Id).NetworkObject.Id != detachedObject,
@@ -109,7 +115,7 @@ public partial class PlayableMechProbe
         await PickupServicePart(original.Id);
         await SelectServiceSlot(MechSlot.Sensor);
         unchanged = host.Composition + host.GasState + FieldCapture();
-        await Pulse("service_part"); await Ticks(3);
+        await ProbeService(); await Ticks(3);
         Require(unchanged == host.Composition + host.GasState + FieldCapture() && host.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem,
             "Incompatible service mutated body/carry/world state.");
         host.GetNode<PlayerCarrier>("PlayerCarrier").RequestDrop();
@@ -184,7 +190,7 @@ public partial class PlayableMechProbe
         foreach (var body in Bodies)
         {
             CheckBody(body);
-            Require(Service(body).GetNode<Label>("HUD/SlotLabel").Visible == body.GetNode("Input").IsMultiplayerAuthority(), "Service label leaked to another owner.");
+            Require(!Service(body).PanelOpen, "Service panel opened without local intent.");
             if (command != "service_fresh") Require(body.Gas.Snapshot.Energy == 6 && body.Gas.Snapshot.Heat == 12, "Client service resources reset.");
         }
         var local = LocalBody;
@@ -192,14 +198,14 @@ public partial class PlayableMechProbe
         {
             case "service_detach":
                 _clientServicePart = local.GetPart(MechSlot.LeftLeg)!.Id;
-                await SelectServiceSlot(MechSlot.LeftLeg); await Pulse("service_part");
+                await SelectServiceSlot(MechSlot.LeftLeg); await ProbeService();
                 await Until(() => !local.HasPart(MechSlot.LeftLeg) && Loose.Any(p => p.Projection.Id == _clientServicePart));
                 ServiceGas(local, 1); break;
             case "service_move": await MeasureOwner("service_client_detached", "move_left"); break;
             case "service_return": await DriveOwner("move_right"); await Settle(); break;
             case "service_reinstall":
                 var oldObject = LoosePart(_clientServicePart).NetworkObject.Id;
-                await PickupServicePart(_clientServicePart); await Pulse("service_part");
+                await PickupServicePart(_clientServicePart); await ProbeService();
                 await Until(() => local.GetPart(MechSlot.LeftLeg)?.Id == _clientServicePart && !_world.TryGet(oldObject, out _));
                 Require(!local.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem, "Client reinstall retained holder.");
                 ServiceGas(local, 2); break;
@@ -207,16 +213,16 @@ public partial class PlayableMechProbe
                 Input.ActionPress("move_left"); await Ticks(12); Input.ActionRelease("move_left"); await Settle(); break;
             case "service_replace":
                 var incoming = Loose.Single(p => p.Projection.Model == "debug_leg"); var id = incoming.Projection.Id; var obj = incoming.NetworkObject.Id;
-                await PickupServicePart(id); await Pulse("service_part");
+                await PickupServicePart(id); await ProbeService();
                 await Until(() => local.GetPart(MechSlot.LeftLeg)?.Id == id && !_world.TryGet(obj, out _) && Loose.Any(p => p.Projection.Id == _clientServicePart));
                 Require(!local.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem, "Client replacement retained holder."); break;
             case "service_attack":
                 var other = Bodies.Single(b => !b.GetNode("Input").IsMultiplayerAuthority());
-                Service(other).RequestService(MechSlot.LeftLeg); // local owner gate
-                Service(other).RpcId(1, "RequestServiceRpc", (int)MechSlot.LeftLeg); // deliberately bypass the local gate
-                Service(local).RpcId(1, "RequestServiceRpc", 99);
+                Service(other).RequestDetach(MechSlot.LeftLeg); // local owner gate
+                Service(other).RpcId(1, "RequestDetachRpc", (int)MechSlot.LeftLeg); // deliberately bypass the local gate
+                Service(local).RpcId(1, "RequestDetachRpc", 99);
                 bool rejected = false;
-                try { Service(local).TryService(new(1), MechSlot.LeftLeg); } catch (InvalidOperationException) { rejected = true; }
+                try { Service(local).TryDetach(new(1), MechSlot.LeftLeg); } catch (InvalidOperationException) { rejected = true; }
                 Require(rejected, "Client ran authoritative service.");
                 await Ticks(6); break;
             case "service_fresh":

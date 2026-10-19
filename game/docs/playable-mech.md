@@ -20,7 +20,8 @@ Maaack's `game_scene_path` selects `game/shell/online_gameplay.tscn`, a game-own
 composition of reusable `OnlineGameplayShell`/`OnlineGameplayWorld`, with
 `PlayerScene` configured to `game/player/playable_mech.tscn`. GameShell's fallback
 selects the same game-owned scene. The game-owned spawn provider preserves the
-accepted positions; game-owned round content spawns two loose field parts. No sample switch/carryable or starter
+four authored extraction-area positions; game-owned round content owns the
+expanded run and three optional salvage machines. No sample switch/carryable or starter
 player/GAS composition is loaded. See [v0.2 migration](v0.2-consumer-migration.md)
 for composition, resource ownership and acceptance evidence.
 
@@ -74,8 +75,9 @@ Bindings/remapping remain Godot/Maaack configuration. The game-owned service
 controller consumes discrete service actions; see [field parts](field-parts.md).
 
 Presentation copies completed simulation and interpolates a separate top-level
-transform. Primitive torso/sensor geometry faces horizontal motion and derives
-debug color from represented owner. Only the owning peer's camera activates and
+transform. Nine primitive modules face horizontal motion and observe View/Changed for
+visibility/condition. Functional module colors are separate from a small
+represented-owner color marker. Only the owning peer's camera activates and
 follows the presentation. Camera, color and direction are outside rollback.
 
 ## Validation path

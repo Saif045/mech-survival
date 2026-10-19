@@ -45,6 +45,6 @@ pause_menu_packed = ExtResource("8")
 
 [node name="PrototypeRun" type="Node3D" parent="OnlineGameplayWorld"]
 script = ExtResource("field")
-DurationSeconds = 120.0
+DurationSeconds = 600.0
 
 [editable path="OnlineGameplayWorld/NetworkWorld"]

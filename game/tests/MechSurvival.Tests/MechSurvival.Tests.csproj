@@ -23,6 +23,8 @@
     <Compile Include="../../mech/MechBodyView.cs" Link="Model/MechBodyView.cs" />
     <Compile Include="../../mech/gas/MechGasSnapshot.cs" Link="Model/MechGasSnapshot.cs" />
     <Compile Include="../../mech/gas/EnergyHeatPolicy.cs" Link="Model/EnergyHeatPolicy.cs" />
+    <Compile Include="../../player/MechServiceIntent.cs" Link="Model/MechServiceIntent.cs" />
+    <Compile Include="../../player/MechPartReadout.cs" Link="Model/MechPartReadout.cs" />
     <Compile Include="../../player/MobilityMovementPolicy.cs" Link="Model/MobilityMovementPolicy.cs" />
   </ItemGroup>
 </Project>

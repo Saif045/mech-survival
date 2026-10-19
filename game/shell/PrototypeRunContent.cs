@@ -12,7 +12,7 @@ namespace MechSurvival.Shell;
 /// <summary>The single authored run. Shell and NetworkWorld retain all lifecycle ownership.</summary>
 public partial class PrototypeRunContent : Node3D, IRoundContent
 {
-    [Export] public double DurationSeconds { get; set; } = 120;
+    [Export] public double DurationSeconds { get; set; } = 600;
     public static readonly Vector3 ExtractionCenter = new(0, 0, 8);
     public const float ExtractionRadius = 4.5f;
     public PrototypeRunRules? Rules { get; private set; }
@@ -20,6 +20,10 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
     private SurveyBeacon? _beacon;
     private double _resultElapsed;
     private bool _returnRequested;
+    public static readonly Vector3 ObjectivePosition = new(0, 1, -100);
+    private bool _announced;
+    private double _announcementRemaining;
+    private Label _announcement = null!;
     private Label _hud = null!;
     private Label3D _extraction = null!;
     private StandardMaterial3D _marker = null!;
@@ -27,22 +31,43 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
     public override void _Ready()
     {
         // Geometry is static and identical on every peer; no additional lifecycle.
-        Box("Route", new(0, -0.2f, -4), new(9, 0.4f, 34), new(0.19f, 0.23f, 0.28f));
-        Box("Start", new(0, -0.2f, 8), new(13, 0.4f, 12), new(0.19f, 0.29f, 0.3f));
-        Box("SalvageBay", new(-7, -0.2f, -1), new(8, 0.4f, 8), new(0.3f, 0.25f, 0.16f));
-        Box("WestNorthWall", new(-4.7f, 1.5f, -13), new(0.4f, 3, 16), Colors.SlateGray);
-        Box("EastWall", new(4.7f, 1.5f, -7), new(0.4f, 3, 28), Colors.SlateGray);
-        Box("EndWall", new(0, 1.5f, -21), new(10, 3, 0.4f), Colors.SlateGray);
-        Box("BayWall", new(-11, 1.5f, -1), new(0.4f, 3, 8), Colors.SlateGray);
-        Box("Crate", new(2.8f, 0.7f, -9), new(1.6f, 1.4f, 2), Colors.DarkSlateGray);
-        Landmark("SALVAGE\nOptional: better Cooling / Power\nE: hack", new(-7, 3, -1), Colors.Orange);
-        Landmark("OBJECTIVE\nReach survey beacon / E", new(0, 4, -18), Colors.Cyan);
+        Box("Route", new(0, -0.2f, -48), new(12, 0.4f, 114), new(0.19f, 0.23f, 0.28f));
+        Box("StartYard", new(0, -0.2f, 6), new(18, 0.4f, 18), new(0.19f, 0.29f, 0.3f));
+        Box("SalvageBayA", new(-8, -0.2f, -1), new(10, 0.4f, 10), new(0.3f, 0.25f, 0.16f));
+        Box("CrateYard", new(0, -0.18f, -22), new(22, 0.4f, 20), new(0.3f, 0.26f, 0.18f));
+        Box("SalvageBayB", new(10, -0.2f, -31), new(10, 0.4f, 10), new(0.3f, 0.25f, 0.16f));
+        Box("Connector", new(0, -0.16f, -48), new(10, 0.4f, 32), new(0.16f, 0.21f, 0.3f));
+        Box("IndustrialYard", new(0, -0.18f, -73), new(24, 0.4f, 22), new(0.18f, 0.3f, 0.27f));
+        Box("SalvageBayC", new(-10, -0.2f, -73), new(10, 0.4f, 10), new(0.3f, 0.25f, 0.16f));
+        Box("ObjectiveFacility", new(0, -0.16f, -94), new(16, 0.4f, 24), new(0.22f, 0.22f, 0.33f));
+        Box("ConnectorWest", new(-5.2f, 1.5f, -48), new(0.4f, 3, 30), Colors.SlateGray);
+        Box("ConnectorEast", new(5.2f, 1.5f, -48), new(0.4f, 3, 30), Colors.SlateGray);
+        Box("FacilityWest", new(-8, 2, -94), new(0.4f, 4, 24), Colors.DarkSlateBlue);
+        Box("FacilityEast", new(8, 2, -94), new(0.4f, 4, 24), Colors.DarkSlateBlue);
+        Box("EndWall", new(0, 2, -105), new(16, 4, 0.4f), Colors.SlateGray);
+        Box("BayWall", new(-13, 1.5f, -1), new(0.4f, 3, 10), Colors.SlateGray);
+        Box("BayBWall", new(15, 1.5f, -31), new(0.4f, 3, 10), Colors.SlateGray);
+        Box("BayCWall", new(-15, 1.5f, -73), new(0.4f, 3, 10), Colors.SlateGray);
+        foreach (float z in new[] { -17f, -25f, -69f, -77f })
+        {
+            Box("CrateWest" + -z, new(-4, 1, z), new(3, 2, 4), Colors.DarkGoldenrod);
+            Box("CrateEast" + -z, new(4, 0.75f, z - 2), new(2, 1.5f, 3), Colors.DarkSlateGray);
+        }
+        Landmark("START YARD", new(0, 4, 1), Colors.Cyan);
+        Landmark("CRATE YARD", new(0, 4, -22), Colors.Orange);
+        Landmark("LONG CONNECTOR", new(0, 4, -48), Colors.LightBlue);
+        Landmark("INDUSTRIAL YARD", new(0, 4, -73), Colors.Turquoise);
+        Landmark("OBJECTIVE FACILITY\nSURVEY BEACON AHEAD", new(0, 5, -88), Colors.Magenta);
+        foreach (var site in new[] { new Vector3(-7, 3, -1), new Vector3(10, 3, -31), new Vector3(-10, 3, -73) })
+            Landmark("SALVAGE BAY\nOptional Cooling / Power upgrades\nE: attempt salvage", site, Colors.Orange);
         _extraction = Landmark("", new(0, 3, 8), Colors.Cyan);
         _marker = new StandardMaterial3D { AlbedoColor = Colors.DarkOrange, EmissionEnabled = true, Emission = Colors.DarkOrange };
         AddChild(new MeshInstance3D { Position = new(0, 0.03f, 8), Mesh = new CylinderMesh { TopRadius = ExtractionRadius, BottomRadius = ExtractionRadius, Height = 0.04f }, MaterialOverride = _marker });
         var canvas = new CanvasLayer(); AddChild(canvas);
-        _hud = new Label { Position = new(16, 190), MouseFilter = Control.MouseFilterEnum.Ignore };
-        _hud.AddThemeFontSizeOverride("font_size", 24); canvas.AddChild(_hud);
+        _hud = new Label { Position = new(16, 16), MouseFilter = Control.MouseFilterEnum.Ignore };
+        _hud.AddThemeFontSizeOverride("font_size", 22); canvas.AddChild(_hud);
+        _announcement = new Label { Position = new(320, 50), Modulate = Colors.Cyan, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+        _announcement.AddThemeFontSizeOverride("font_size", 30); canvas.AddChild(_announcement);
     }
     private void Box(string name, Vector3 position, Vector3 size, Color color)
     {
@@ -59,19 +84,24 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
     {
         if (!Multiplayer.IsServer()) throw new InvalidOperationException("Only server gameplay starts a run.");
         _world = world; Rules = new(DurationSeconds); _resultElapsed = 0; _returnRequested = false;
-        _beacon = SurveyBeacon.Spawn(world, new(Basis.Identity, new(0, 1, -18)), this);
+        _beacon = SurveyBeacon.Spawn(world, new(Basis.Identity, ObjectivePosition), this);
         SalvageMachine.Spawn(world, new(Basis.Identity, new(-7, 1, -1)));
+        SalvageMachine.Spawn(world, new(Basis.Identity, new(10, 1, -31)));
+        SalvageMachine.Spawn(world, new(Basis.Identity, new(-10, 1, -73)));
         Publish(0, 0);
     }
     internal bool ActivateObjective()
     {
         if (!Multiplayer.IsServer() || Rules is null || !Rules.ActivateObjective()) return false;
-        // Five sites six units apart: each of the intended four players can
-        // exclude at most one 2.75-unit site, so one is always clear.
-        Vector3[] sites = [new(0, 1, -16), new(0, 1, -10), new(0, 1, -4), new(0, 1, 2), new(0, 1, 8)];
         var bodies = _world!.Objects.Select(o => o.Host).OfType<PlayableMech>().ToArray();
-        Vector3 site = sites.First(p => bodies.All(b => b.GlobalPosition.DistanceTo(p) >= 2.75f));
-        Parasite.Spawn(_world, new(Basis.Identity, site));
+        // Each separated return zone has five candidates six units apart.
+        // Four players can exclude at most four candidates, leaving one clear.
+        foreach (float startZ in new[] { -80f, -44f })
+        {
+            var site = Enumerable.Range(0, 5).Select(i => new Vector3(0, 1, startZ + 6 * i))
+                .First(p => bodies.All(b => b.GlobalPosition.DistanceTo(p) >= 2.75f));
+            Parasite.Spawn(_world, new(Basis.Identity, site));
+        }
         Publish(0, bodies.Length); return true;
     }
     public override void _Process(double delta)
@@ -96,8 +126,15 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
         }
         var view = _beacon?.View;
         _hud.Visible = view is not null && _world.Objects.Any(o => o.Host is PlayableMech && o.OwnerPeerId.Value == Multiplayer.GetUniqueId());
+        if (view?.ObjectiveComplete == true && !_announced)
+        {
+            _announced = true; _announcementRemaining = 5;
+            _announcement.Text = "SURVEY COMPLETE\nEXTRACTION UNLOCKED\nPARASITE ACTIVITY DETECTED\nRETURN TO START";
+        }
+        _announcementRemaining = Math.Max(0, _announcementRemaining - delta);
+        _announcement.Visible = _hud.Visible && _announcementRemaining > 0;
         if (view is null) { _extraction.Text = "START / EXTRACTION\nEXTRACTION LOCKED"; return; }
-        string extraction = view.ObjectiveComplete ? $"EXTRACTION ACTIVE\n{view.Inside} / {view.Active} players" : "EXTRACTION LOCKED";
+        string extraction = view.ObjectiveComplete ? $"EXTRACTION ACTIVE\n{view.Inside} / {view.Active} players" : "EXTRACTION LOCKED - activate beacon";
         _extraction.Text = "START / EXTRACTION\n" + extraction;
         _marker.AlbedoColor = _marker.Emission = view.ObjectiveComplete ? Colors.LimeGreen : Colors.DarkOrange;
         int seconds = view.Seconds;
@@ -105,13 +142,15 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
         {
             RunPhase.Success => "RUN COMPLETE",
             RunPhase.Failure => "RUN FAILED — TIME EXPIRED",
-            _ => $"TIME {seconds / 60:00}:{seconds % 60:00}\n{(view.ObjectiveComplete ? "OBJECTIVE COMPLETE — return to START" : "OBJECTIVE: Reach survey beacon / E")}\n{extraction}"
+            _ => $"TIME {seconds / 60:00}:{seconds % 60:00}\n{(view.ObjectiveComplete ? "OBJECTIVE COMPLETE / RETURN TO EXTRACTION" : "PRIMARY OBJECTIVE: Activate the Survey Beacon / E")}\n{extraction}"
         };
     }
     public static bool InsideExtraction(Vector3 position) => new Vector2(position.X - ExtractionCenter.X, position.Z - ExtractionCenter.Z).Length() <= ExtractionRadius && Math.Abs(position.Y) <= 4;
     private void Publish(int inside, int active) => _beacon!.Publish(new(Rules!.Phase, (int)Math.Ceiling(Rules.RemainingSeconds), Rules.ObjectiveComplete, inside, active));
     public void ResetRound()
     {
+        _announced = false; _announcementRemaining = 0;
+        if (_announcement is not null) _announcement.Visible = false;
         Rules = null; _beacon = null; _resultElapsed = 0; _returnRequested = false;
         if (_hud is not null) _hud.Visible = false;
     }

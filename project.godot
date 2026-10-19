@@ -72,13 +72,9 @@ hack_4={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":52,"unicode":52)]
 }
-service_next_slot={
+mech_status={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":74,"unicode":106)]
-}
-service_part={
-"deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":75,"unicode":107)]
+"events": [Object(InputEventKey,"physical_keycode":4194306)]
 }
 move_forward={
 "deadzone": 0.5,

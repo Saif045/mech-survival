@@ -16,7 +16,7 @@ server PartInstance; clients receive only immutable identity/model/condition.
 Pickup/drop preserves both part and network object IDs. Compose factory
 CarryTarget/PlayerCarrier/PlayerInteractor with explicit game permissions and
 presentation anchor; carry and semantic actions stay outside rollback.
-Field service requests contain only a selected slot; the server derives carried
+Field service requests carry an explicit install or detach intent and only a selected slot; the server derives carried
 parts and transforms, validates ownership and body policy before mutation, and
 transfers exact PartInstance references. Successful install despawns the incoming
 loose embodiment; replacement spawns the outgoing instance. Keep service out of
@@ -41,6 +41,12 @@ Only `NetworkMechBody` calls the pure mutable rules in networked gameplay.
 Consumers inspect its immutable `View`. Keep composition and condition out of
 Netfox rollback. Do not add client installation RPCs without a concrete
 server-side request validation contract.
+
+Tab opens a non-pausing owner service panel; install and detach are separate
+validated requests. Missing carried parts never turn install into detach.
+Comparison formats condition-weighted physical output, not predicted GAS.
+Primitive modules observe View/Changed; functional colors and owner marker
+remain separate. Inventory and online pause-menu repair are deferred.
 
 Slot definitions are explicit; extend the enum, configured definition resources,
 and rules tests together. Presentation is labels in a game-owned probe. Do not
@@ -68,12 +74,12 @@ initialization is explicit, never an installation/repair refill. See
 [the resource contract](docs/energy-heat.md). Keep resources outside rollback.
 
 Read [the run loop](docs/run-loop.md) for the current finite authored mode.
-PrototypeRunContent implements IRoundContent; the server owns its 120-second
-deadline, objective transition, delayed return-route parasite and all-live-body
+PrototypeRunContent implements IRoundContent; the server owns its 600-second
+deadline, objective transition, two delayed return-route parasites and all-live-body
 extraction. SurveyBeacon uses the existing validated interaction path. Clients
 observe replicated state only. Terminal results cannot change. The existing shell
 returns the retained session to its lobby once after a brief result display.
-Normal rounds contain one optional SalvageMachine, useful imperfect Cooling/Power
+Normal rounds contain three optional SalvageMachines, useful imperfect Cooling/Power
 rewards, no free debug loot, and no parasite until objective activation. Fresh
 rounds reset all state and create new part/object identities. Keep pure run rules
 small; runtime composition belongs in the existing -RunLoop probe mode.

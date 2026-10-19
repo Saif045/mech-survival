@@ -20,8 +20,9 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
 {
     public const string ScenePath = "res://game/salvage/salvage_machine.tscn";
     public const float EncounterRange = 2.75f;
-    public const double PreviewSeconds = 1.5, ResponseSeconds = 8, WarningSeconds = 2;
-    public sealed record Observation(SalvageMachineState State, long OperatorId, int[] Sequence, int Progress, bool InputOpen);
+    public const double PreviewSeconds = 1.5, ResponseSeconds = 8, WarningSeconds = 3;
+    public sealed record Observation(SalvageMachineState State, long OperatorId, int[] Sequence, int Progress, bool InputOpen, int DestructSeconds = 0);
+    public int DestructSeconds { get; private set; }
     private static string EmptyState => JsonSerializer.Serialize(new Observation(SalvageMachineState.Neutral, 0, [], 0, false));
     [Export, Replicated(ReplicationMode.OnChange)] public string EncounterState { get; private set; } = EmptyState;
     public SalvageMachineState State { get; private set; }
@@ -78,7 +79,7 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
         if (Rewards.Count != 2 || (Multiplayer.IsServer() && _rewards.Length != 2)) throw new InvalidOperationException("Machine requires initialized rewards.");
         _status = GetNode<Label3D>("Status"); _hud = GetNode<Label>("HackHUD/Challenge");
         _hud.Visible = false;
-        _material = new StandardMaterial3D(); GetNode<MeshInstance3D>("Mesh").MaterialOverride = _material;
+        _material = new StandardMaterial3D { EmissionEnabled = true }; GetNode<MeshInstance3D>("Mesh").MaterialOverride = _material;
         _replication = NetworkObject.GetComponent<ReplicationComponent>();
         _replication.Synchronized += Observe; _replication.DeltaSynchronized += Observe;
         Observe();
@@ -110,14 +111,22 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
                 if (Input.IsActionJustPressed($"hack_{symbol}")) RequestHackInput(symbol);
         }
         if (State == SalvageMachineState.SelfDestructing)
-            _material.AlbedoColor = (Time.GetTicksMsec() / 150 % 2) == 0 ? Colors.Red : Colors.DarkRed;
+        {
+            _material.AlbedoColor = _material.Emission = DestructSeconds == 0 ? Colors.White :
+                (Time.GetTicksMsec() / 120 % 2) == 0 ? Colors.Red : Colors.DarkRed;
+            GetNode<MeshInstance3D>("Mesh").Scale = Vector3.One * (DestructSeconds == 0 ? 2.5f : 1);
+            _status.Text = DestructSeconds == 0 ? "SALVAGE DESTROYED\nREWARDS LOST" : $"HACK FAILED\nSELF DESTRUCT {DestructSeconds}...\nREWARDS LOST - MOVE CLEAR";
+        }
     }
     private void Advance(double delta)
     {
         if (State == SalvageMachineState.SelfDestructing)
         {
             _warningRemaining -= delta;
-            if (_warningRemaining <= 0 && !IsQueuedForDeletion()) NetworkObject.World.Despawn(NetworkObject.Id);
+            int seconds = (int)Math.Ceiling(Math.Max(0, _warningRemaining));
+            if (seconds != DestructSeconds) { DestructSeconds = seconds; Publish("countdown"); }
+            // Brief visible destruction flash belongs to this object and tears down with it.
+            if (_warningRemaining <= -0.4 && !IsQueuedForDeletion()) NetworkObject.World.Despawn(NetworkObject.Id);
             return;
         }
         if (State != SalvageMachineState.Hacking) return;
@@ -189,13 +198,13 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
         catch
         {
             foreach (var id in spawned) NetworkObject.World.Despawn(id);
-            _rewards = []; State = SalvageMachineState.SelfDestructing; _warningRemaining = WarningSeconds;
+            _rewards = []; State = SalvageMachineState.SelfDestructing; _warningRemaining = WarningSeconds; DestructSeconds = (int)WarningSeconds;
             Publish("reward_spawn_failed"); throw;
         }
     }
     private void Fail(string reason)
     {
-        State = SalvageMachineState.SelfDestructing; StopChallenge();
+        State = SalvageMachineState.SelfDestructing; StopChallenge(); DestructSeconds = (int)WarningSeconds;
         _rewards = []; _warningRemaining = WarningSeconds; Publish(reason);
     }
     private void StopChallenge()
@@ -214,7 +223,7 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
     }
     private void Publish(string reason)
     {
-        EncounterState = JsonSerializer.Serialize(new Observation(State, OperatorNetworkObjectId, Sequence.ToArray(), Progress, InputOpen));
+        EncounterState = JsonSerializer.Serialize(new Observation(State, OperatorNetworkObjectId, Sequence.ToArray(), Progress, InputOpen, DestructSeconds));
         Render();
         GameLog.Info("salvage", reason, fields: new Dictionary<string, string?>
         { ["machine"] = NetworkObject.Id.ToString(), ["state"] = State.ToString(), ["operator"] = OperatorNetworkObjectId.ToString(), ["progress"] = Progress.ToString() });
@@ -229,7 +238,7 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
                 (state.State == SalvageMachineState.Hacking ? state.OperatorId == 0 || state.Sequence.Length != 4 : state.OperatorId != 0 || state.Sequence.Length != 0 || state.InputOpen))
                 throw new ArgumentException("Invalid salvage observation.");
             State = state.State; OperatorNetworkObjectId = state.OperatorId; Sequence = Array.AsReadOnly(state.Sequence);
-            Progress = state.Progress; InputOpen = state.InputOpen;
+            Progress = state.Progress; InputOpen = state.InputOpen; DestructSeconds = state.DestructSeconds;
         }
         Render();
     }
@@ -242,7 +251,7 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
             SalvageMachineState.Neutral => $"SALVAGE MACHINE\n{preview}\nE: attempt salvage",
             SalvageMachineState.Hacking => $"HACKING  {Progress}/4\nOperator {OperatorNetworkObjectId}",
             SalvageMachineState.Disabled => "DISABLED\nSalvage released",
-            _ => "SELF DESTRUCT"
+            _ => $"HACK FAILED\nSELF DESTRUCT {DestructSeconds}...\nREWARDS LOST"
         };
         _material.AlbedoColor = State switch { SalvageMachineState.Neutral => Colors.Goldenrod, SalvageMachineState.Hacking => Colors.DodgerBlue,
             SalvageMachineState.Disabled => Colors.DarkSlateGray, _ => Colors.Red };

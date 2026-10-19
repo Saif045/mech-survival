@@ -94,7 +94,7 @@ public partial class PlayableMechProbe : Node
                 _gameplay.Start();
                 await Until(() => _connected);
                 RpcId(1, MethodName.HelloRpc);
-                await Until(() => _finished, 90000);
+                await Until(() => _finished, runLoop ? 240000UL : 90000UL);
                 GD.Print(parasite ? "PLAYABLE_CLIENT_PASS parasite_rounds=3" : "PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
             }
             else if (runLoop)
@@ -486,7 +486,7 @@ public partial class PlayableMechProbe : Node
     private void FinishRpc() => _finished = true;
     private void OnConnected() => _connected = true;
     private static float PlanarDistance(Vector3 a, Vector3 b) => new Vector2(a.X - b.X, a.Z - b.Z).Length();
-    private static void ReleaseInputs() { foreach (string action in new[] { "move_left", "move_right", "move_forward", "move_backward", "jump", "interact", "drop_item", "service_part", "service_next_slot", "hack_1", "hack_2", "hack_3", "hack_4", "purge_pulse" }) Input.ActionRelease(action); }
+    private static void ReleaseInputs() { foreach (string action in new[] { "move_left", "move_right", "move_forward", "move_backward", "jump", "interact", "drop_item", "mech_status", "hack_1", "hack_2", "hack_3", "hack_4", "purge_pulse" }) Input.ActionRelease(action); }
     private async Task Until(Func<bool> condition, ulong timeout = 10000)
     {
         ulong deadline = Time.GetTicksMsec() + timeout;

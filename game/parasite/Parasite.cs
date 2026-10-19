@@ -240,8 +240,8 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
     private void Render()
     {
         if (State == ParasiteState.Attached) AddToGroup("interactable"); else RemoveFromGroup("interactable");
-        _material.AlbedoColor = State == ParasiteState.Lurking ? Colors.Purple : Colors.OrangeRed;
-        _material.Emission = _material.AlbedoColor * 0.35f;
+        _material.AlbedoColor = State == ParasiteState.Lurking ? Colors.Magenta : Colors.OrangeRed;
+        _material.Emission = _material.AlbedoColor;
     }
     public override void _ExitTree()
     {

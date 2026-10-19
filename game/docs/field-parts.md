@@ -38,28 +38,32 @@ spawn their own fixture parts. See [run loop](run-loop.md).
 
 ## Field service
 
-The game-owned MechServiceController on PlayableMech reads semantic actions outside
-rollback: `service_next_slot` (J) cycles the nine explicit MechSlot values;
-`service_part` (K) services the selected slot. A local-owner-only label displays
-the selection and prototype controls. Selection stays local and unreplicated.
-E picks up nearby parts; Q drops the carried part as before.
+Tab toggles the owner-only Mech Status / Service panel without pausing the
+multiplayer game. All nine rows display installed model, condition and effective
+physical contribution/capabilities, or EMPTY. Row buttons explicitly select a
+target slot, including independent arms/legs. E picks up and Q drops as before.
+A compact status list remains while closed, including carried model/condition.
 
-With no carried loose mech part, service detaches the selected installed instance
-and creates a new LooseMechPart beside the body. An empty slot is a rejected no-op.
-With a carried compatible part, service installs it into the selected empty slot
-or replaces its current part. The outgoing exact instance becomes a new loose,
-interactable object. The incoming loose network embodiment despawns. Its
-MechPartId, definition, condition and server object reference survive installation;
-its temporary NetworkObjectId ends. A later detach creates a fresh embodiment ID.
+When carrying a LooseMechPart, the panel shows its compatible slots and compares
+CURRENT / CARRIED / CHANGE for the selected slot. MechPartReadout formats the
+existing immutable MechBodyView/InstalledPart and condition-weighted definition
+contributions. It does not predict native GAS modifiers or cache another mech
+state. Primitive modules observe View/Changed for missing parts and condition;
+functional colors remain independent of the dedicated player identity marker.
 
-The owner-to-server reliable request contains only the intended MechSlot. The
-server validates role, represented owner/sender, enum, live world registration
-and body authority. It resolves a unique carried LooseMechPart from that world's
-existing holder state, checks object ownership/availability, obtains the actual
-server PartInstance and validates its immutable projection and body definition.
-It trusts no client-provided part/object ID, condition, definition or transform.
-Client calls to another mech's owner entry are ignored; the RPC independently
-rejects forged ownership. No new inventory or held-item registry exists.
+INSTALL / REPLACE sends only a selected slot to the dedicated RequestInstallRpc.
+It requires a currently carried compatible loose part; missing carry is rejected,
+never interpreted as detach. DETACH uses RequestDetachRpc and deliberately
+removes the installed instance, leaving any carried part unchanged. Empty detach
+rejects. J/K and the old carry-dependent service request are removed.
+
+Both intents validate live server body registration, slot, authority and actual
+sender against represented ownership. Installation derives a unique carried
+LooseMechPart from the world's holder state, checks world/ownership and validates
+its exact authoritative PartInstance. Clients supply no part ID, condition or
+transform. Replacement emits the outgoing exact instance as a loose object and
+despawns the incoming embodiment, retaining MechPartId and condition. Detach
+also retains exact identity. No inventory or held-item registry is introduced.
 
 MechBody.CanReplacePart is the non-mutating compatibility/installation-claim
 policy for both empty and occupied slots. CanAttachPart additionally requires an
@@ -84,34 +88,16 @@ not reset Energy or Heat. Existing capacity clamping/no-refill behavior remains
 owned by GAS/resources; service never initializes resources.
 
 Exclusions: repair, loose-part damage/condition changes, per-power-module charge,
-stored/equipped inventory, wrecks/dead bodies, salvage/hacking, throw physics,
-persistence, loot tables, economy, hazards, extraction, final UI/animation/meshes.
+stored inventory, wrecks/dead bodies, throw physics, persistence, loot tables,
+economy, new hazards, final UI/animation/meshes.
 
 ## Validation
 
-Validation uses the existing product test project and playable probe:
-
-```powershell
-dotnet build GameFactory.sln --disable-build-servers -m:1 -p:UseSharedCompilation=false
-dotnet test game/tests/MechSurvival.Tests/MechSurvival.Tests.csproj --disable-build-servers -m:1 -p:UseSharedCompilation=false
-./game/probes/run_playable_mech_probe.ps1 -Service -Mode Offline -RunId <unique_id>
-./game/probes/run_playable_mech_probe.ps1 -Service -Mode Multiplayer -RunId <unique_id>
-git diff --check
-```
-
-The retained `-FieldParts` mode starts the host's round and picks up a leg before the client
-connects, proving existing spawn and held-state observation. After reset, the
-second round includes both players and exercises client interaction/drop requests.
-It checks canonical body/GAS/player composition as a narrow regression. Evidence,
-frozen hashes and cleanup results live in `game/artifacts/playable_mech/<run_id>/`.
-This local ENet probe makes no Steam/VM or manual visual acceptance claim.
-
-
-The `-Service` mode exercises both owners' detach/reinstall/replacement requests,
-exact instance and ID transfer, incompatible/empty/invalid/forged rejection,
-body/GAS/loose-state convergence, carrier reconciliation and outgoing interaction.
-It measures 24-tick locomotion at 6, 3, restored 6 and 5.4 speed with the existing
-movement tolerance, plus client-owner/server-observed speed 3. Probe-only resource
-simulation pause preserves controlled Energy 6 / Heat 12 observations. Real
-production resource cadence remains enabled. Two rounds check cleanup and fresh
-identities, with the same disposable profiles and bounded runner.
+The current focused run-loop acceptance exercises explicit install rejection
+without carry, explicit detach with a carried part, exact arm identity through
+detach/reinstall, remote empty/present View observations, ownership guards and
+exact improved reward installation with no resource refill. Pure product tests
+cover intent selection and condition-weighted comparison/readout formatting.
+Use the build/product/-RunLoop offline/two-peer commands in [run loop](run-loop.md).
+Historical focused modes retain their own fixture parts and explicit API calls;
+this pass does not reaccept every historical scenario.

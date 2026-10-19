@@ -4,8 +4,8 @@
 [ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
 
 [sub_resource type="SphereMesh" id="Blob"]
-radius = 0.3
-height = 0.6
+radius = 0.48
+height = 0.96
 
 [node name="Parasite" type="Node3D"]
 script = ExtResource("1")
@@ -16,9 +16,9 @@ script = ExtResource("1")
 mesh = SubResource("Blob")
 
 [node name="Status" type="Label3D" parent="."]
-position = Vector3(0, 0.8, 0)
+position = Vector3(0, 1.15, 0)
 billboard = 1
-font_size = 30
+font_size = 38
 
 [node name="PurgeHUD" type="CanvasLayer" parent="."]
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://cmekplayer05"]
+[gd_scene load_steps=18 format=3 uid="uid://cmekplayer05"]
 
 [ext_resource type="PackedScene" path="res://game/mech/mech_body.tscn" id="1"]
 [ext_resource type="Script" path="res://game/player/PlayableMech.cs" id="2"]
@@ -15,6 +15,8 @@
 [ext_resource type="Script" path="res://game/player/MechFieldPermission.cs" id="permission"]
 
 [ext_resource type="Script" path="res://game/player/MechServiceController.cs" id="service"]
+
+[ext_resource type="Script" path="res://game/player/MechModulePresentation.cs" id="modules"]
 
 [sub_resource type="CapsuleShape3D" id="Collision"]
 radius = 0.55
@@ -46,12 +48,13 @@ script = ExtResource("6")
 
 [node name="Visual" type="Node3D" parent="Presentation"]
 
-[node name="Torso" type="MeshInstance3D" parent="Presentation/Visual"]
-mesh = SubResource("Torso")
+[node name="Modules" type="Node3D" parent="Presentation/Visual"]
+script = ExtResource("modules")
 
-[node name="Sensor" type="MeshInstance3D" parent="Presentation/Visual"]
-position = Vector3(0, 0.7, -0.15)
-mesh = SubResource("Sensor")
+[node name="OwnerMarker" type="MeshInstance3D" parent="Presentation/Visual"]
+position = Vector3(0, 0.5, 0.42)
+scale = Vector3(0.32, 0.12, 0.12)
+mesh = SubResource("Torso")
 
 [node name="Camera3D" type="Camera3D" parent="Presentation"]
 transform = Transform3D(1, 0, 0, 0, 0.928477, 0.371391, 0, -0.371391, 0.928477, 0, 6, 10)
@@ -91,16 +94,6 @@ AnchorPath = NodePath("../Presentation/CarryAnchor")
 script = ExtResource("service")
 
 [node name="HUD" type="CanvasLayer" parent="MechServiceController"]
-
-[node name="SlotLabel" type="Label" parent="MechServiceController/HUD"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 750.0
-offset_bottom = 80.0
-mouse_filter = 2
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 1)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
 
 [node name="ParasiteAnchor" type="Node3D" parent="Presentation"]
 position = Vector3(0, 0.5, 0.45)

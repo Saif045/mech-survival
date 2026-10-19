@@ -85,7 +85,7 @@ public partial class PlayableMechProbe
         StartHack(machine); await Ticks(3); Require(Loose.Length == count, "Disabled machine yielded duplicate loot.");
         var oldCooling = LocalBody.GetServerPart(MechSlot.Cooling)!;
         var coolingObject = LoosePart(stored[0].Id).NetworkObject.Id;
-        await PickupServicePart(stored[0].Id); await SelectServiceSlot(MechSlot.Cooling); await Pulse("service_part");
+        await PickupServicePart(stored[0].Id); await SelectServiceSlot(MechSlot.Cooling); await ProbeService();
         await Until(() => !_world.TryGet(coolingObject, out _));
         Require(ReferenceEquals(stored[0], LocalBody.GetServerPart(MechSlot.Cooling)) && ReferenceEquals(oldCooling, LoosePart(oldCooling.Id).GetServerPart()) &&
             Math.Abs(LocalBody.Gas.Snapshot.CoolingCapacity - 7.2f) < 0.0001f && LocalBody.Gas.Snapshot.Energy == 6 && LocalBody.Gas.Snapshot.Heat == 12,
@@ -207,7 +207,7 @@ public partial class PlayableMechProbe
                 await Until(() => target.Progress == progress + 1); break;
             case "salvage_install":
                 var part = new MechPartId(Guid.Parse(packet.RewardId)); var obj = LoosePart(part).NetworkObject.Id;
-                await PickupServicePart(part); await SelectServiceSlot(MechSlot.Power); await Pulse("service_part");
+                await PickupServicePart(part); await SelectServiceSlot(MechSlot.Power); await ProbeService();
                 await Until(() => LocalBody.GetPart(MechSlot.Power)?.Id == part && !_world.TryGet(obj, out _));
                 Require(!LocalBody.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem && LocalBody.GetPart(MechSlot.Power)!.Condition == 0.85f, "Client reward install/carry reconciliation failed."); break;
             case "salvage_repeat":

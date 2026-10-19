@@ -1,7 +1,7 @@
 # Salvage machine v1
 
-The normal game-owned PrototypeRunContent spawns one neutral SalvageMachine
-in the optional western bay of the authored run; see [run loop](run-loop.md). It uses
+The normal game-owned PrototypeRunContent spawns three neutral SalvageMachines
+in separate optional bays of the authored run; see [run loop](run-loop.md). It uses
 the same NetworkWorld and released factory PlayerInteractor/IInteractable path.
 Primitive geometry, a reward/status Label3D, an operator-only HUD and a warning
 flash provide prototype presentation. There is no combat or AI framework.
@@ -52,8 +52,9 @@ despawned and the encounter fails without retrying or fabricating rewards.
 
 Wrong symbol, response timeout, operator disappearance/invalidity or leaving
 range triggers SelfDestructing, discards unreleased rewards and clears the
-challenge/operator. A two-second SELF DESTRUCT warning flashes before server
-despawn. It destroys only the salvage opportunity and never damages players.
+challenge/operator. A three-second HACK FAILED / SELF DESTRUCT countdown flashes red and
+announces REWARDS LOST, followed by a brief expanding white flash and
+SALVAGE DESTROYED message before server despawn. It destroys only the salvage opportunity and never damages players.
 
 NetworkWorld owns round removal of machines, shells and loose rewards. Tree exit
 unsubscribes replication and clears stored references and local timer values;
