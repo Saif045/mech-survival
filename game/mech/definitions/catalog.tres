@@ -1,4 +1,4 @@
-[gd_resource type="Resource" load_steps=10 format=3]
+[gd_resource type="Resource" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://game/mech/MechPartCatalogResource.cs" id="1"]
 [ext_resource type="Script" path="res://game/mech/MechPartDefinitionResource.cs" id="2"]
@@ -10,6 +10,9 @@
 [ext_resource type="Resource" path="res://game/mech/definitions/power.tres" id="Power"]
 [ext_resource type="Resource" path="res://game/mech/definitions/cooling.tres" id="Cooling"]
 
+[ext_resource type="Resource" path="res://game/mech/definitions/industrial_cooling.tres" id="IndustrialCooling"]
+[ext_resource type="Resource" path="res://game/mech/definitions/high_density_power.tres" id="HighDensityPower"]
+
 [resource]
 script = ExtResource("1")
-Definitions = Array[ExtResource("2")]([ExtResource("Core"), ExtResource("Torso"), ExtResource("Sensor"), ExtResource("Arm"), ExtResource("Leg"), ExtResource("Power"), ExtResource("Cooling")])
+Definitions = Array[ExtResource("2")]([ExtResource("Core"), ExtResource("Torso"), ExtResource("Sensor"), ExtResource("Arm"), ExtResource("Leg"), ExtResource("Power"), ExtResource("Cooling"), ExtResource("IndustrialCooling"), ExtResource("HighDensityPower")])

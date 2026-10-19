@@ -1,14 +1,14 @@
 # Salvage machine v1
 
-The normal game-owned FieldPartsRoundContent spawns one neutral SalvageMachine
-near the starting players, alongside the existing debug leg/power loot. It uses
+The normal game-owned PrototypeRunContent spawns one neutral SalvageMachine
+in the optional western bay of the authored run; see [run loop](run-loop.md). It uses
 the same NetworkWorld and released factory PlayerInteractor/IInteractable path.
 Primitive geometry, a reward/status Label3D, an operator-only HUD and a warning
 flash provide prototype presentation. There is no combat or AI framework.
 
 The explicit server-owned states are Neutral → Hacking → Disabled on success,
 or Hacking → SelfDestructing → despawn on failure. Neutral advertises fixed
-debug_cooling condition 0.9 and debug_sensor condition 0.75 rewards. It has no HP,
+industrial_cooling condition 0.9 and high_density_power condition 0.85 rewards. It has no HP,
 attacks, player damage or automatic hostility. Interaction voluntarily starts it.
 
 The accepted interaction records the operator's NetworkObjectId. Only one
@@ -69,7 +69,10 @@ carry/install, invalid/forged/duplicate rejection, wrong/timeout/range failures,
 all-state round cleanup and fresh identities. It uses disposable profiles and
 local ENet, without Steam/VM or a manual visual acceptance claim.
 
-Excluded: chase AI, combat/weapons/HP/damage, explosion damage, parasites,
+Excluded from this encounter: chase AI, combat/weapons/HP/damage, explosion damage,
 revive, perks/abilities, rarity/loot tables, additional minigames, generic enemy
-or encounter systems, procedural levels, extraction, progression, persistence,
+or encounter systems, procedural levels, progression, persistence,
 and final art/audio/UI.
+
+The useful rewards yield 7.2 effective Cooling and 12.75 Power versus pristine
+starter values 5 and 10. Installation never refills resources.

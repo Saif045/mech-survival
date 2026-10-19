@@ -58,6 +58,7 @@ public partial class PlayableMechProbe : Node
             bool service = args.Contains("--service");
             bool salvage = args.Contains("--salvage");
             bool parasite = args.Contains("--parasite");
+            bool runLoop = args.Contains("--run-loop");
             Require(offline || _client || args.Contains("--playable-host"), "Select an explicit probe role.");
             // Exercise real interpolation even with the headless display driver.
             GetNode("/root/InterpolationServer").Call("set_server_enabled", true);
@@ -74,7 +75,7 @@ public partial class PlayableMechProbe : Node
             Require(shell is OnlineGameplayShell, "Normal factory shell was replaced.");
             _gameplay = shell.GetNode<OnlineGameplayWorld>("OnlineGameplayWorld");
             Require(_gameplay.PlayerScene.ResourcePath == "res://game/player/playable_mech.tscn", "Normal PlayerScene is not the mech.");
-            Require(_gameplay.GetNode(_gameplay.RoundContentPath) is MechSurvival.Shell.FieldPartsRoundContent, "Round content must be game-owned field parts.");
+            Require(_gameplay.GetNode(_gameplay.RoundContentPath) is MechSurvival.Shell.PrototypeRunContent, "Round content must be game-owned prototype run.");
             Require(_gameplay.GetNode(_gameplay.SpawnDataProviderPath) is MechSurvival.Shell.MechSpawnDataProvider,
                 "Spawn policy must be game-owned.");
             shell.RemoveChild(_gameplay); shell.Free();
@@ -95,6 +96,11 @@ public partial class PlayableMechProbe : Node
                 RpcId(1, MethodName.HelloRpc);
                 await Until(() => _finished, 90000);
                 GD.Print(parasite ? "PLAYABLE_CLIENT_PASS parasite_rounds=3" : "PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
+            }
+            else if (runLoop)
+            {
+                await RunLoopAcceptance(offline);
+                GD.Print(offline ? "PLAYABLE_OFFLINE_PASS" : "PLAYABLE_SERVER_PASS");
             }
             else if (parasite)
             {
@@ -212,6 +218,16 @@ public partial class PlayableMechProbe : Node
     private void StartRound()
     {
         _gameplay.Start();
+        // Historical focused modes own their fixtures; normal runs contain no free loot.
+        var args = OS.GetCmdlineUserArgs();
+        if (args.Contains("--field-parts") || args.Contains("--service") || args.Contains("--parasite"))
+        {
+            var catalog = GD.Load<MechPartCatalogResource>("res://game/mech/definitions/catalog.tres").Freeze();
+            LooseMechPart.Spawn(_world, new PartInstance(catalog.Resolve("debug_leg"), 0.8f), new(Basis.Identity, new(-2, 0.6f, 6.3f)));
+            LooseMechPart.Spawn(_world, new PartInstance(catalog.Resolve("debug_power"), 1), new(Basis.Identity, new(2, 0.6f, 6.3f)));
+        }
+        if (args.Contains("--parasite"))
+            MechSurvival.Parasites.Parasite.Spawn(_world, new(Basis.Identity, new(-4, 1, 11)));
         // Probe-only pause makes canonical comparisons exact. Production keeps
         // the accepted idle drain; movement adds no resource cost or heat.
         foreach (var body in Bodies) body.Gas.SetResourceSimulationEnabled(false);
@@ -231,7 +247,7 @@ public partial class PlayableMechProbe : Node
         foreach (var body in Bodies)
         {
             bool host = Object(body).OwnerPeerId == PeerId.Server;
-            Require(body.InitializedBeforeTree && body.InitialSpawnPosition == new Vector3(host ? -2 : 2, 2, 0), "Incorrect shell spawn data.");
+            Require(body.InitializedBeforeTree && body.InitialSpawnPosition == new Vector3(host ? -2 : 2, 2, 8), "Incorrect shell spawn data.");
             Require(body.View.Parts.Count == 9 && body.View.Parts.All(p => p.Condition == 1), "Incomplete fresh loadout.");
             var gas = body.Gas.ReadSnapshot();
             Require(gas == new MechGasSnapshot(2, 10, 5, true, true, true, true, 10, 0), "Incorrect fresh native GAS/resources.");
@@ -376,7 +392,8 @@ public partial class PlayableMechProbe : Node
         _busy = true;
         try
         {
-            if (command.StartsWith("parasite_")) await ParasiteCommand(command, samples);
+            if (command.StartsWith("run_")) { await RunLoopCommand(command, samples); }
+            else if (command.StartsWith("parasite_")) await ParasiteCommand(command, samples);
             else if (command.StartsWith("salvage_")) await SalvageCommand(command, samples);
             else if (command.StartsWith("service_")) await ServiceCommand(command, samples);
             else if (command.StartsWith("field_")) await FieldCommand(command, samples);

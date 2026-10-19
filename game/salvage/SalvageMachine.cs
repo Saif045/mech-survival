@@ -45,7 +45,7 @@ public partial class SalvageMachine : Node3D, INetworkSpawnInitializable, IInter
     {
         if (!world.Multiplayer.IsServer()) throw new InvalidOperationException("Only server gameplay creates salvage rewards.");
         var catalog = GD.Load<MechPartCatalogResource>("res://game/mech/definitions/catalog.tres").Freeze();
-        PartInstance[] rewards = [new(catalog.Resolve("debug_cooling"), 0.9f), new(catalog.Resolve("debug_sensor"), 0.75f)];
+        PartInstance[] rewards = [new(catalog.Resolve("industrial_cooling"), 0.9f), new(catalog.Resolve("high_density_power"), 0.85f)];
         var preview = new Godot.Collections.Array<Godot.Collections.Dictionary>();
         foreach (var part in rewards) preview.Add(new() { ["model"] = part.Definition.Model, ["condition"] = part.Condition });
         return world.Spawn<SalvageMachine>(GD.Load<PackedScene>(ScenePath), PeerId.Server,

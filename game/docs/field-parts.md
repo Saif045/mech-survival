@@ -5,7 +5,7 @@ loose world embodiment. Pickup/drop preserves both IDs and the server's exact
 `PartInstance` reference. Service transfers that same instance between the body
 and its temporary loose embodiment.
 
-The seven resources in `game/mech/definitions/` are canonical model definitions
+The nine resources in `game/mech/definitions/` are canonical model definitions
 shared by bodies and loose parts. Each definition freezes once into immutable
 configuration. `catalog.tres` supplies the small model lookup for prototype
 content and loose projection validation; it stores no runtime items.
@@ -31,10 +31,10 @@ sender, target, range, holder and capacity validation. Default semantic `interac
 and `drop_item` input stays enabled. Presentation/CarryAnchor follows the existing
 presentation hierarchy; carry state and actions remain outside rollback.
 
-Normal online_gameplay.tscn points RoundContentPath to FieldPartsRoundContent.
-Each round spawns a condition-0.8 debug leg and pristine debug power part near
-the players. NetworkWorld removes them on round reset; new rounds create fresh
-part and object identities. The content node retains no round state.
+Normal online_gameplay.tscn points RoundContentPath to PrototypeRunContent.
+There is no free debug loot in a normal run. Loose parts come from successful
+salvage or player detach/replacement. Historical focused probes explicitly
+spawn their own fixture parts. See [run loop](run-loop.md).
 
 ## Field service
 

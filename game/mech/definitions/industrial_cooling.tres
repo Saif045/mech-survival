@@ -1,0 +1,8 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://game/mech/MechPartDefinitionResource.cs" id="1"]
+[resource]
+script = ExtResource("1")
+Model = "industrial_cooling"
+CompatibleSlots = PackedInt32Array(8)
+Capabilities = PackedInt32Array(3)
+CoolingCapacity = 8.0

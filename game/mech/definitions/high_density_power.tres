@@ -1,0 +1,8 @@
+[gd_resource type="Resource" load_steps=2 format=3]
+[ext_resource type="Script" path="res://game/mech/MechPartDefinitionResource.cs" id="1"]
+[resource]
+script = ExtResource("1")
+Model = "high_density_power"
+CompatibleSlots = PackedInt32Array(7)
+Capabilities = PackedInt32Array(2)
+PowerCapacity = 15.0

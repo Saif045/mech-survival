@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3 uid="uid://cbeaconrun11"]
+
+[ext_resource type="Script" path="res://game/shell/SurveyBeacon.cs" id="1"]
+[ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
+
+[sub_resource type="BoxMesh" id="mesh"]
+size = Vector3(1, 2, 1)
+[sub_resource type="BoxShape3D" id="shape"]
+size = Vector3(1, 2, 1)
+
+[node name="SurveyBeacon" type="Node3D"]
+script = ExtResource("1")
+[node name="NetworkObject" parent="." instance=ExtResource("2")]
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh")
+[node name="Body" type="StaticBody3D" parent="."]
+[node name="Collision" type="CollisionShape3D" parent="Body"]
+shape = SubResource("shape")
+[node name="Status" type="Label3D" parent="."]
+position = Vector3(0, 2.3, 0)
+billboard = 1
+font_size = 36

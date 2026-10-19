@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://cxmekbody01"]
+[gd_scene load_steps=14 format=3 uid="uid://cxmekbody01"]
 
 [ext_resource type="Script" path="res://game/mech/NetworkMechBody.cs" id="1"]
 [ext_resource type="PackedScene" path="res://factory/networking/objects/network_object.tscn" id="2"]
@@ -19,9 +19,12 @@
 
 [ext_resource type="Resource" path="res://game/mech/definitions/cooling.tres" id="def_Cooling"]
 
+[ext_resource type="Resource" path="res://game/mech/definitions/industrial_cooling.tres" id="IndustrialCooling"]
+[ext_resource type="Resource" path="res://game/mech/definitions/high_density_power.tres" id="HighDensityPower"]
+
 [node name="MechBody" type="CharacterBody3D"]
 script = ExtResource("1")
-Definitions = Array[ExtResource("3")]([ExtResource("def_Core"), ExtResource("def_Torso"), ExtResource("def_Sensor"), ExtResource("def_Arm"), ExtResource("def_Leg"), ExtResource("def_Power"), ExtResource("def_Cooling")])
+Definitions = Array[ExtResource("3")]([ExtResource("def_Core"), ExtResource("def_Torso"), ExtResource("def_Sensor"), ExtResource("def_Arm"), ExtResource("def_Leg"), ExtResource("def_Power"), ExtResource("def_Cooling"), ExtResource("IndustrialCooling"), ExtResource("HighDensityPower")])
 
 [node name="NetworkObject" parent="." instance=ExtResource("2")]
 

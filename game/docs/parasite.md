@@ -2,8 +2,9 @@
 
 The initial roster is the neutral SalvageMachine and this hostile Parasite.
 The parasite is one concrete game-owned encounter, without combat or AI/minigame
-frameworks. Normal round content spawns one at (-4,1,3), away from the starts,
-alongside the salvage machine and existing field parts.
+frameworks. Normal [run content](run-loop.md) spawns one on the return route only after
+objective activation, away from all current bodies. Focused parasite probes
+explicitly create their own infection and loose-part fixtures.
 
 Lurking stays at its spawn transform. On the server, an eligible live PlayableMech
 within 1.6 units is selected in NetworkObjectId order. The parasite claims that
@@ -82,5 +83,5 @@ No Steam/VM or manual visual acceptance is claimed.
 
 Excluded: chase/pathfinding, additional species/enemies, physical combat, HP,
 player/part damage, death/revive, perks/abilities, parasite loot, generic status
-effects or minigame systems, additional minigames, objectives, extraction,
-progression, persistence and final art/audio/UI. The first run loop is separate.
+effects or minigame systems, additional minigames,
+progression, persistence and final art/audio/UI.

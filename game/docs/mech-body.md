@@ -13,12 +13,12 @@ possession or automatic core-required rule is introduced.
 | Sensor | Sensing module; no sensor gameplay yet |
 | LeftArm / RightArm | Independently installed arm modules |
 | LeftLeg / RightLeg | Independently installed mobility modules |
-| Power | Power capacity module; no consumption or energy simulation |
-| Cooling | Cooling capacity module; no heat simulation |
+| Power | Power capacity module; bounds canonical Energy |
+| Cooling | Cooling capacity module; determines canonical cooling |
 
 `MechPartDefinitionResource` is Godot inspector configuration: model key,
 compatible slots, capabilities and base contributions. On startup it becomes an
-immutable `PartDefinition`. The seven debug definitions are shared resources in
+immutable `PartDefinition`. The nine authored definitions are shared resources in
 `game/mech/definitions/`, used by bodies and loose parts. Slot/capability integer arrays
 use the enum values in `MechSlot.cs` and are validated when frozen. Keep model
 keys and enum meanings consistent across peers; normal matched builds supply
@@ -35,7 +35,7 @@ The body has its own NetworkObjectId.
 `MechBody` supplies pure C# attachment policy. `NetworkMechBody` keeps that
 mutable model private, checks server peer 1 authority and world binding before
 every mutation/creation, and exposes immutable observations. Client gameplay
-cannot mutate the canonical model. There are no installation-request RPCs.
+cannot mutate the canonical model. Field service validates owner requests; see the field-parts contract.
 
 ## Operations and condition
 
@@ -79,8 +79,8 @@ does not need an independent transport, event bus or per-part replication node.
 
 `ResetBody` detaches everything. On tree exit the body releases all installation
 claims and clears its stored projection. The probe clears local world objects on
-server disconnect. Normal product session lifecycle integration and operated-body
-assignment remain future work; this task does not modify the framework shell.
+server disconnect. Normal product session lifecycle and operated-body assignment are composed by
+the game-owned playable scene and factory shell; see the playable and run contracts.
 
 ## Probe and validation
 
@@ -173,7 +173,7 @@ the final game schema. Add focused capabilities/base properties only when a real
 consumer requires them. Keep authoritative state server-owned and local visuals
 outside that state. Preserve GameFactory release ancestry and upstream ownership.
 
-Damage effects, repair, energy drain, batteries consuming power, heat, cooling
-simulation, movement degradation, mines, corrosion, sand, parasites, rarity,
-hacking, salvage, persistent inventory, rescue, extraction, run timers,
-progression, procedural generation, combat and final art are intentionally absent.
+The current game composes damage, Energy/Heat, field service, salvage and
+parasites into [one finite run](run-loop.md). Repair, environmental hazards,
+rarity, persistent inventory, rescue, progression, procedural generation, combat
+and final art remain excluded.

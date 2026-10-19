@@ -63,7 +63,7 @@ public partial class PlayableMechProbe
         Require(Machines.Length == 1, "Normal round did not spawn the salvage machine.");
         var machine = Machines[0];
         Require(machine.State == SalvageMachineState.Neutral && machine.OperatorNetworkObjectId == 0 && machine.Sequence.Count == 0 && machine.Progress == 0 &&
-            machine.Rewards.SequenceEqual(new[] { new SalvageRewardPreview("debug_cooling", 0.9f), new SalvageRewardPreview("debug_sensor", 0.75f) }), "Neutral machine/preview mismatch.");
+            machine.Rewards.SequenceEqual(new[] { new SalvageRewardPreview("industrial_cooling", 0.9f), new SalvageRewardPreview("high_density_power", 0.85f) }), "Neutral machine/preview mismatch.");
         var allRewards = new List<PartInstance>(); var stored = machine.GetServerRewards().ToArray(); allRewards.AddRange(stored);
         if (!offline) await SalvageStage(301);
         // Walk around the Task07 loose leg, using real semantic movement, into encounter range.
@@ -88,7 +88,7 @@ public partial class PlayableMechProbe
         await PickupServicePart(stored[0].Id); await SelectServiceSlot(MechSlot.Cooling); await Pulse("service_part");
         await Until(() => !_world.TryGet(coolingObject, out _));
         Require(ReferenceEquals(stored[0], LocalBody.GetServerPart(MechSlot.Cooling)) && ReferenceEquals(oldCooling, LoosePart(oldCooling.Id).GetServerPart()) &&
-            Math.Abs(LocalBody.Gas.Snapshot.CoolingCapacity - 4.5f) < 0.0001f && LocalBody.Gas.Snapshot.Energy == 6 && LocalBody.Gas.Snapshot.Heat == 12,
+            Math.Abs(LocalBody.Gas.Snapshot.CoolingCapacity - 7.2f) < 0.0001f && LocalBody.Gas.Snapshot.Energy == 6 && LocalBody.Gas.Snapshot.Heat == 12,
             "Released reward did not use accepted carry/install/GAS path.");
         GD.Print($"SALVAGE_REWARD_PASS host=true cooling_part={stored[0].Id.Value:D} sensor_part={stored[1].Id.Value:D} exact_instances=true carry_install=true");
         if (!offline)
@@ -110,11 +110,11 @@ public partial class PlayableMechProbe
                 Require(clientMachine.Progress == i + 1, "Server did not observe client challenge progress.");
             }
             Require(clientMachine.State == SalvageMachineState.Disabled && clientRewards.All(r => ReferenceEquals(r, LoosePart(r.Id).GetServerPart())), "Client success lost reward references.");
-            var sensor = Bodies[1].GetServerPart(MechSlot.Sensor)!;
+            var sensor = Bodies[1].GetServerPart(MechSlot.Power)!;
             var incoming = LoosePart(clientRewards[1].Id).NetworkObject.Id;
             await SalvageStage(314, "salvage_install", clientMachine, reward: clientRewards[1]);
             await Until(() => !_world.TryGet(incoming, out _));
-            Require(ReferenceEquals(clientRewards[1], Bodies[1].GetServerPart(MechSlot.Sensor)) && ReferenceEquals(sensor, LoosePart(sensor.Id).GetServerPart()), "Client reward carry/install lost identity.");
+            Require(ReferenceEquals(clientRewards[1], Bodies[1].GetServerPart(MechSlot.Power)) && ReferenceEquals(sensor, LoosePart(sensor.Id).GetServerPart()), "Client reward carry/install lost identity.");
             before = clientMachine.EncounterState; count = Loose.Length;
             await SalvageStage(315, "salvage_repeat", clientMachine);
             Require(before == clientMachine.EncounterState && count == Loose.Length, "Client duplicated terminal rewards.");
@@ -207,9 +207,9 @@ public partial class PlayableMechProbe
                 await Until(() => target.Progress == progress + 1); break;
             case "salvage_install":
                 var part = new MechPartId(Guid.Parse(packet.RewardId)); var obj = LoosePart(part).NetworkObject.Id;
-                await PickupServicePart(part); await SelectServiceSlot(MechSlot.Sensor); await Pulse("service_part");
-                await Until(() => LocalBody.GetPart(MechSlot.Sensor)?.Id == part && !_world.TryGet(obj, out _));
-                Require(!LocalBody.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem && LocalBody.GetPart(MechSlot.Sensor)!.Condition == 0.75f, "Client reward install/carry reconciliation failed."); break;
+                await PickupServicePart(part); await SelectServiceSlot(MechSlot.Power); await Pulse("service_part");
+                await Until(() => LocalBody.GetPart(MechSlot.Power)?.Id == part && !_world.TryGet(obj, out _));
+                Require(!LocalBody.GetNode<PlayerCarrier>("PlayerCarrier").HasCarriedItem && LocalBody.GetPart(MechSlot.Power)!.Condition == 0.85f, "Client reward install/carry reconciliation failed."); break;
             case "salvage_repeat":
                 StartHack(target!); target!.RpcId(1, "SubmitHackRpc", 1); await Ticks(3); break;
             case "salvage_fresh":

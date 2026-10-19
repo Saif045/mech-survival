@@ -124,6 +124,6 @@ foundation cluster is complete; later gameplay layers remain separate tasks.
 ## Deferred
 
 No environment/weather/sun zones, movement consumption or penalties, shutdown,
-sensor consequences, heat damage, death/rescue, repair, field swapping, battery
-charge persistence/transfer, hazards, salvage, extraction, economy, combat or final
+sensor consequences, heat damage, death/rescue, repair, battery
+charge persistence/transfer, hazards, economy, combat or final
 UI/audio/VFX. The resource state is ready for future consumers, not their behavior.

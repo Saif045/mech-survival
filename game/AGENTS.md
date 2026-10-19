@@ -67,9 +67,19 @@ until field-part gameplay supplies evidence for per-part stored charge. Fresh
 initialization is explicit, never an installation/repair refill. See
 [the resource contract](docs/energy-heat.md). Keep resources outside rollback.
 
-Damage formulas, repair, environment and extra activity consumption,
-survival, salvage, rescue, combat, extraction, and
-persistence remain undecided. Do not implement them as part of this foundation.
+Read [the run loop](docs/run-loop.md) for the current finite authored mode.
+PrototypeRunContent implements IRoundContent; the server owns its 120-second
+deadline, objective transition, delayed return-route parasite and all-live-body
+extraction. SurveyBeacon uses the existing validated interaction path. Clients
+observe replicated state only. Terminal results cannot change. The existing shell
+returns the retained session to its lobby once after a brief result display.
+Normal rounds contain one optional SalvageMachine, useful imperfect Cooling/Power
+rewards, no free debug loot, and no parasite until objective activation. Fresh
+rounds reset all state and create new part/object identities. Keep pure run rules
+small; runtime composition belongs in the existing -RunLoop probe mode.
+
+Damage formulas, repair, environment, movement activity costs, rescue, combat,
+death/revive, progression and persistence remain excluded.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
 problem with the routed upstream repair workflow.
 
@@ -102,27 +112,3 @@ full-access mode or change project/runtime source to bypass agent restrictions.
 Use the normal user profile only for a test explicitly reproducing the interactive
 desktop environment. The unrestricted normal-profile import passed; prior
 restricted-agent startup failures are environment failures, not project defects.
-
-Task 01 validation: build, 20 product tests, and 73 foundation tests passed.
-Offline `mech_offline_guard_20261012_024557` and local two-peer replication
-`mech_multiplayer_20261012_024607` passed, with zero owned processes after cleanup,
-profile deletion, APPDATA restoration and unchanged source/build. This body
-foundation is acceptance-proven on that scripted local Godot/ENet boundary;
-see the contract for exact assertions and preserved earlier failure evidence.
-
-Task 02 damage validation: build, 41 product cases and 73 foundation cases passed.
-Offline `mech_damage_offline_20261012_031922` and eight-stage two-peer
-`mech_damage_multiplayer_20261012_031935` passed, including damaged late join,
-effective-output matching, 64 client rejections, reset/despawn/fresh state and
-process/profile/port cleanup. See the damage contract for evidence. Keep this
-accepted physical layer separate from Task 03's future canonical Mech GAS state.
-
-Task 03 Mech GAS validation: build, 50 product cases and 73 foundation cases passed.
-Offline `mech_gas_teardown_offline_20261012_035827` and twelve-stage two-peer
-`mech_gas_matcher_multiplayer_20261012_040302` passed using the actual vendored ASC,
-canonical snapshots/mirrors, additive effect coexistence, damaged/modified late
-sync, native tags, 144 client rejections and full cleanup. Earlier probe teardown
-and log-parser failures are preserved in the GAS contract. Source-owned baseline
-effect replacement must preserve unrelated native effects; do not reset the ASC
-when physical structure changes. Resource updates must likewise preserve
-unrelated native effects. The resource contract records Task 04 acceptance.
