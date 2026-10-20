@@ -23,7 +23,7 @@ semantics are introduced.
 - Idle drain is BaseEnergyDrainPerSecond. Defaults are 0.1 Energy/second,
   CoolingRateScale 1 and CoolingEnergyCostPerHeat 0.25; these are tunable values.
 - Native `State.PowerDepleted` exists at Energy `<=0`; `State.ThermalCritical`
-  exists at Heat `>=100`. No subjective threshold, penalty, damage or death exists.
+  exists at Heat `>=100`. The expedition applies a separate sustained >=95 structural-damage rule; see [environment](environment.md). No death rule exists.
 
 `EnergyHeatPolicy` is pure arithmetic; it never stores authoritative current
 resources. Each step clamps Energy to capacity, spends idle drain, adds external
@@ -38,7 +38,7 @@ Heat setup above 100 and zero-cost cooling configuration also reject.
 The [parasite](parasite.md) adds one concrete source-owned contribution on
 MechGasComponent: ParasiteEnergyDrain and ParasiteHeatLoad. Parasite drain is
 charged after base drain and before cooling; ExternalEnergySpent reports it
-separately without changing BaseEnergySpent's meaning. Parasite Heat adds to the
+as total non-base spending (including environment) without changing BaseEnergySpent's meaning. Parasite Heat adds to the
 existing external Heat before saturation/cooling. Optional zero inputs preserve
 the previous policy result. No load setter changes current Energy/Heat; clearing
 a matching source only stops future parasite costs and preserves external Heat.
@@ -123,7 +123,19 @@ foundation cluster is complete; later gameplay layers remain separate tasks.
 
 ## Deferred
 
-No environment/weather/sun zones, movement consumption or penalties, shutdown,
-sensor consequences, heat damage, death/rescue, repair, battery
-charge persistence/transfer, hazards, economy, combat or final
-UI/audio/VFX. The resource state is ready for future consumers, not their behavior.
+No generic weather/sun simulation, movement consumption or penalties, shutdown,
+sensor consequences, death/rescue, repair, battery
+charge persistence/transfer, additional hazard systems, economy, combat or final
+UI/audio/VFX. The concrete expedition environment below is the current survival consumer.
+
+## Expedition environmental input
+
+EnvironmentalEnergyDrain and EnvironmentalHeatLoad form one focused server input
+on MechGasComponent, separate from the existing external Heat and parasite loads.
+The pure policy adds all contributions with double intermediates before spending
+and cooling. Nonfinite/negative environmental inputs reject before mutation;
+zero inputs retain the accepted result. Clearing the environmental input never
+clears parasite load or current Energy/Heat, and vice versa. ResetResourceState
+and teardown clear both environmental rates. Normal expedition players use the
+policy's 0.01/s idle drain; generic resource defaults remain 0.1/s. See
+[environment](environment.md) for storm-scaled rates and runtime acceptance.

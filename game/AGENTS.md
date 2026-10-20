@@ -84,7 +84,12 @@ disconnect semantics, existing salvage/purge mechanics and fresh round identitie
 Parasite graph pursuit and run mutations stay server-owned, outside rollback.
 Keep pure rules small and acceptance in the existing -RunLoop focused probe.
 
-Damage formulas, repair, environment, movement activity costs, rescue, combat,
+Read [environment](docs/environment.md) for the concrete expedition controller,
+separate seeded hazard plan, storm clock, environmental GAS input and functional
+ApplyDamage pulses. Keep resources/parts canonical and independent of parasite
+claims.
+
+Additional damage formulas, repair, movement activity costs, rescue, combat,
 death/revive, progression and persistence remain excluded.
 Preserve accepted GameFactory layers; reopen them only for a scoped reproduced
 problem with the routed upstream repair workflow.

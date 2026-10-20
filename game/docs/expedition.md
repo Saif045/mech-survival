@@ -75,7 +75,7 @@ three real hacks, quota replication, all-active extraction and reset into a
 second seed with fresh world/reward identities. Headless probes do not establish
 human visual acceptance. No Steam/VM test is requested.
 
-Environmental hazards, storms and environment damage await Task 14. Combat,
+[Environmental survival](environment.md) adds deterministic Thermal/Electrical/Corrosive rooms and storm escalation. Combat,
 new enemies/minigames, inventory, revive, perks, progression, persistence,
 minimaps, procedural meshes and final environment art remain excluded.
 
@@ -88,3 +88,8 @@ Seed 120000 produced signature FF0CFD1B7C7D6F38 (18 rooms, 21 connections,
 extraction nine graph edges from entry). Reset seed 654321 produced
 241B92EEDECC3939 (18 rooms, 20 connections). Validation and preserved failed
 attempt history live in `game/artifacts/run_loop/expedition_acceptance_20261020/summary.json`.
+
+Task 14 keeps the geometry/encounter stream and LayoutSignature stable, adds a
+separate EnvironmentSignature and replicates storm/per-body exposure through
+ExpeditionRun's observation. Start/extraction stay Safe. See environment.md for
+rates, damage ownership, composition with parasites and fresh-round cleanup.

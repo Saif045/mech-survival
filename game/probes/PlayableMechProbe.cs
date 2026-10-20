@@ -94,7 +94,7 @@ public partial class PlayableMechProbe : Node
                 _gameplay.Start();
                 await Until(() => _connected);
                 RpcId(1, MethodName.HelloRpc);
-                await Until(() => _finished, runLoop ? 240000UL : 90000UL);
+                await Until(() => _finished, runLoop ? 600000UL : 90000UL);
                 GD.Print(parasite ? "PLAYABLE_CLIENT_PASS parasite_rounds=3" : "PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
             }
             else if (runLoop)

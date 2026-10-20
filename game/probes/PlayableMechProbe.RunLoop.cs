@@ -6,6 +6,7 @@ using Godot;
 using MechSurvival.Parasites;
 using MechSurvival.Salvage;
 using MechSurvival.Shell;
+using MechSurvival.Environment;
 namespace MechSurvival.Probes;
 public partial class PlayableMechProbe
 {
@@ -21,7 +22,9 @@ public partial class PlayableMechProbe
     }
     private async Task WalkTo(float x, float z)
     {
-        ulong end = Time.GetTicksMsec() + 14000;
+        float distance=new Vector2(LocalBody.Position.X-x,LocalBody.Position.Z-z).Length();
+        ulong allowance=(ulong)Math.Max(14000,1000*(distance/Math.Max(0.5f,LocalBody.GasMoveSpeed)*2+4));
+        ulong end = Time.GetTicksMsec() + allowance;
         while (new Vector2(LocalBody.Position.X - x, LocalBody.Position.Z - z).Length() > 0.35f)
         {
             Require(Time.GetTicksMsec() < end, $"Walk timeout {x},{z} body={LocalBody.Position}"); ReleaseInputs();
@@ -34,22 +37,26 @@ public partial class PlayableMechProbe
     }
     private async Task WalkRoom(int room)
     {
-        foreach (int next in Expedition.Layout.Path(Expedition.RoomAt(LocalBody.GlobalPosition), room)) { var p = Expedition.Center(next); await WalkTo(p.X, p.Z); }
+        foreach (int next in Expedition.Layout.Path(Expedition.RoomAt(LocalBody.GlobalPosition), room)) { var p = Expedition.Center(next);
+            // Fixed per-owner lanes keep a waiting teammate off the other route's waypoints.
+            float lane=Multiplayer.IsServer()?-1.2f:1.2f;
+            await WalkTo(p.X+lane, p.Z+lane); }
     }
     private async Task ResetRun(bool offline, int stage)
     {
         var gas = Bodies.Select(b => b.Gas).ToArray(); if (!offline) RpcId(_remote, MethodName.CommandRpc, stage, "run_reset", "");
         await ResetAndCheck(); if (!offline) await Until(() => _ack == stage, 60000);
-        Require(RunContent.Rules is null && _world.Count == 0 && gas.All(g => g.ParasiteSourceId == 0), "Reset retained state.");
+        Require(RunContent.Rules is null && _world.Count == 0 && gas.All(g => g.ParasiteSourceId == 0 && g.EnvironmentalHeatLoad == 0 && g.EnvironmentalEnergyDrain == 0), "Reset retained state.");
     }
     private async Task RunLoopAcceptance(bool offline)
     {
         GD.Print("PLAYABLE_READY role=server"); if (!offline) await Until(() => _hello);
-        RunContent.ProbeSeed = 120000; StartRound(); CheckFresh(offline ? 1 : 2); CheckRegistry();
+        RunContent.StormPhaseSeconds = 20; RunContent.ProbeSeed = 120000; StartRound(); CheckFresh(offline ? 1 : 2); CheckRegistry();
         // Capture placements before the first simulation frame advances roaming.
         Require(Expedition.Layout.Rooms.Count == 18 && Machines.Length == 5 && Parasites.Length == 3 && Loose.Length == 0, "Expedition composition invalid.");
         Require(Machines.Select(m => Expedition.RoomAt(m.GlobalPosition)).SequenceEqual(Expedition.Layout.Salvage), "Salvage assignment mismatch.");
         Require(Parasites.Select(p => Expedition.RoomAt(p.GlobalPosition)).SequenceEqual(Expedition.Layout.Parasites), "Parasite assignment mismatch.");
+        string firstEnvironmentSignature = Expedition.EnvironmentPlan.Signature;
         string firstSignature = Expedition.Layout.Signature; int firstSeed = Expedition.Seed; long oldId = Expedition.NetworkObject.Id.Value;
         var rewards = Machines.SelectMany(m => m.GetServerRewards()).Select(p => p.Id).ToArray();
         await Settle(); if (!offline) await RunStage(501);
@@ -72,6 +79,7 @@ public partial class PlayableMechProbe
         else if (Object(infected).OwnerPeerId.Value == 1) await RunStage(502, "run_team_purge", attached);
         else { await WalkRoom(Expedition.RoomAt(infected.GlobalPosition)); await WalkTo(infected.GlobalPosition.X - 1.8f, infected.GlobalPosition.Z); StartPurge(attached); await Until(() => attached.State == ParasiteState.Purging); CheckPurgeConfiguration(attached, true); await SolveLocalPurge(attached); }
         GD.Print("RUN_CHASE_PASS graph_connections=multiple detection=true catch=true purge=true");
+        await EnvironmentAcceptance(offline);
         int stage = 510;
         foreach (var machine in Machines.Take(3).ToArray())
         {
@@ -101,7 +109,8 @@ public partial class PlayableMechProbe
         long oldMax = _world.Objects.Max(o => o.Id.Value); await ResetRun(offline, 530);
         RunContent.ProbeSeed = 654321; StartRound(); CheckFresh(offline ? 1 : 2);
         Require(Expedition.Seed != firstSeed && Expedition.Layout.Signature != firstSignature && Expedition.NetworkObject.Id.Value != oldId && _world.Objects.All(o => o.Id.Value > oldMax) && Machines.SelectMany(m => m.GetServerRewards()).All(p => !rewards.Contains(p.Id)) && RunContent.Rules is { ObjectiveComplete: false, SalvageCount: 0 }, "Fresh round retained state/identities/layout.");
-        await Settle(); if (!offline) await RunStage(531);
+        Require(Expedition.EnvironmentPlan.Signature != firstEnvironmentSignature && Expedition.Environment.StormLevel == 0 && Bodies.All(b => b.Gas.EnvironmentalHeatLoad == 0 && b.Gas.EnvironmentalEnergyDrain == 0 && b.View.Parts.All(p => p.Condition == 1)), "Fresh environment retained state.");
+        await Settle(); if (!offline) { await RunStage(531); await EnvironmentStage(607); }
         GD.Print($"RUN_FRESH_PASS seed={Expedition.Seed} signature={Expedition.Layout.Signature} identities=fresh");
         await ResetRun(offline, 532);
         if (!offline) { RpcId(_remote, MethodName.FinishRpc); await Until(() => Multiplayer.GetPeers().Length == 0); }
@@ -109,6 +118,7 @@ public partial class PlayableMechProbe
     }
     private async Task RunLoopCommand(string command, string samples)
     {
+        if (command.StartsWith("run_env_")) { await EnvironmentCommand(command, samples); return; }
         if (command == "run_reset") { await ResetAndCheck(); Require(RunContent.Rules is null && _world.Count == 0, "Client reset retained state."); return; }
         var packet = JsonSerializer.Deserialize<RunPacket>(samples)!;
         await Until(() => _world.Objects.Any(o => o.Host is ExpeditionRun r && r.NetworkObject.Id.Value == packet.Id) && Expedition.View is { } v && v.Phase == packet.View.Phase && v.Salvage == packet.View.Salvage && v.Active == packet.View.Active && v.Inside == packet.View.Inside);

@@ -115,3 +115,12 @@ another physical condition or effective-output model.
 
 The current probe additionally exercises [canonical Mech GAS](mech-gas.md);
 the Task 02 results above preserve the original eight-stage damage evidence.
+
+## Expedition survival consumer
+
+The [environment controller](environment.md) now calls the existing authoritative
+ApplyDamage boundary for corrosion and sustained Heat >=95. It selects one live
+installed Sensor/leg/Power/Cooling per bounded pulse; it does not mutate condition
+directly or introduce HP, damage types, repair, detach or a second snapshot.
+Identity, immutable View, GAS projection and authority contracts above remain.
+The historical Task 02 deferred-layer statements describe that acceptance point.
