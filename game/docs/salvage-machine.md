@@ -1,7 +1,8 @@
 # Salvage machine v1
 
-The normal game-owned PrototypeRunContent spawns three neutral SalvageMachines
-in separate optional bays of the authored run; see [run loop](run-loop.md). It uses
+The normal game-owned PrototypeRunContent spawns five neutral SalvageMachines
+in distinct randomized rooms; see [expedition](expedition.md). Three successful
+Disabled machines unlock extraction. It uses
 the same NetworkWorld and released factory PlayerInteractor/IInteractable path.
 Primitive geometry, a reward/status Label3D, an operator-only HUD and a warning
 flash provide prototype presentation. There is no combat or AI framework.

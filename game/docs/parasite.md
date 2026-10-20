@@ -2,15 +2,11 @@
 
 The initial roster is the neutral SalvageMachine and this hostile Parasite.
 The parasite is one concrete game-owned encounter, without combat or AI/minigame
-frameworks. Normal [run content](run-loop.md) spawns one on the return route only after
-objective activation, away from all current bodies. Focused parasite probes
-explicitly create their own infection and loose-part fixtures.
-
-Lurking stays at its spawn transform. On the server, an eligible live PlayableMech
-within 1.6 units is selected in NetworkObjectId order. The parasite claims that
-mech's single parasite resource contribution and becomes Attached. A source-owned
-slot on MechGasComponent enforces at most one parasite per mech and makes stale
-cleanup harmless. It is not a general status stack or modifier registry.
+frameworks. Normal [expeditions](expedition.md) place three in distinct rooms at entry.
+The server roams/chases through the room graph and attaches on contact within
+1.6 units. Target selection excludes already-infected mechs; a source-owned
+MechGasComponent slot enforces one parasite per mech. Historical isolated
+encounter fixtures may omit the expedition graph.
 
 The parasite remains a separate server-owned NetworkWorld object with the same
 NetworkObjectId and parent. AttachedNetworkObjectId is ordinary replicated state.
@@ -81,7 +77,7 @@ other comparisons use the existing probe pause/manual-step mechanism so removal
 can be checked against exact current snapshots. Production keeps automatic steps.
 No Steam/VM or manual visual acceptance is claimed.
 
-Excluded: chase/pathfinding, additional species/enemies, physical combat, HP,
+Excluded: general navigation frameworks, additional species/enemies, physical combat, HP,
 player/part damage, death/revive, perks/abilities, parasite loot, generic status
 effects or minigame systems, additional minigames,
 progression, persistence and final art/audio/UI.

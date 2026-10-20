@@ -1,0 +1,117 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="StandardMaterial3D" id="floor_material"]
+
+albedo_color = Color(0.17, 0.34, 0.26, 1)
+
+[sub_resource type="BoxMesh" id="floor_mesh"]
+
+size = Vector3(22, 0.4, 22)
+
+material = SubResource("floor_material")
+
+[sub_resource type="BoxShape3D" id="floor_shape"]
+
+size = Vector3(22, 0.4, 22)
+
+[sub_resource type="CylinderMesh" id="prop_mesh_0"]
+
+top_radius = 1.5
+
+bottom_radius = 1.5
+
+height = 6
+
+material = SubResource("floor_material")
+
+[sub_resource type="BoxShape3D" id="prop_shape_0"]
+
+size = Vector3(3, 6, 3)
+
+[sub_resource type="CylinderMesh" id="prop_mesh_1"]
+
+top_radius = 2.0
+
+bottom_radius = 2.0
+
+height = 4
+
+material = SubResource("floor_material")
+
+[sub_resource type="BoxShape3D" id="prop_shape_1"]
+
+size = Vector3(4, 4, 4)
+
+[sub_resource type="CylinderMesh" id="prop_mesh_2"]
+
+top_radius = 1.5
+
+bottom_radius = 1.5
+
+height = 3
+
+material = SubResource("floor_material")
+
+[sub_resource type="BoxShape3D" id="prop_shape_2"]
+
+size = Vector3(3, 3, 3)
+
+[node name="machinery" type="Node3D"]
+
+[node name="Floor" type="StaticBody3D" parent="."]
+
+position = Vector3(0, -0.2, 0)
+
+[node name="Mesh" type="MeshInstance3D" parent="Floor"]
+
+mesh = SubResource("floor_mesh")
+
+[node name="Collision" type="CollisionShape3D" parent="Floor"]
+
+shape = SubResource("floor_shape")
+
+[node name="Landmark" type="Label3D" parent="."]
+
+position = Vector3(-6, 7, -6)
+
+text = "MACHINERY"
+
+font_size = 48
+
+billboard = 1
+
+[node name="Obstacle0" type="StaticBody3D" parent="."]
+
+position = Vector3(-6, 3, -6)
+
+[node name="Mesh" type="MeshInstance3D" parent="Obstacle0"]
+
+mesh = SubResource("prop_mesh_0")
+
+[node name="Collision" type="CollisionShape3D" parent="Obstacle0"]
+
+shape = SubResource("prop_shape_0")
+
+[node name="Obstacle1" type="StaticBody3D" parent="."]
+
+position = Vector3(6, 2, -6)
+
+[node name="Mesh" type="MeshInstance3D" parent="Obstacle1"]
+
+mesh = SubResource("prop_mesh_1")
+
+[node name="Collision" type="CollisionShape3D" parent="Obstacle1"]
+
+shape = SubResource("prop_shape_1")
+
+[node name="Obstacle2" type="StaticBody3D" parent="."]
+
+position = Vector3(-6, 1.5, 6)
+
+[node name="Mesh" type="MeshInstance3D" parent="Obstacle2"]
+
+mesh = SubResource("prop_mesh_2")
+
+[node name="Collision" type="CollisionShape3D" parent="Obstacle2"]
+
+shape = SubResource("prop_shape_2")

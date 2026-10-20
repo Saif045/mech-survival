@@ -11,6 +11,7 @@ using GameFactory.Networking.Peers;
 using GameFactory.Networking.World;
 using MechSurvival.Mech.Gas;
 using MechSurvival.Player;
+using MechSurvival.Shell;
 
 namespace MechSurvival.Parasites;
 
@@ -37,6 +38,13 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
     public bool CleanedUp { get; private set; }
     public bool HasActiveTimer => _remaining > 0 || _cursorElapsed > 0;
     public NetworkObject NetworkObject => GetNode<NetworkObject>("NetworkObject");
+    [Export, Replicated(ReplicationMode.OnChange)] public Vector3 RoamingPosition { get; private set; }
+    [Export, Replicated(ReplicationMode.OnChange)] public long ChaseTargetId { get; private set; }
+    public Vector3 InitialPosition { get; private set; }
+    public int TraversedConnections { get; private set; }
+    private readonly Queue<Vector3> _waypoints = new();
+    private int _destinationRoom = -1;
+    private int _lastRoom = -1;
     private PurgeChallenge? _challenge;
     private MechGasComponent? _loadGas;
     private NetworkObjectId _identity;
@@ -59,7 +67,7 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
         if (_initialized || IsInsideTree()) throw new InvalidOperationException("Parasite spawn initializes once before entry.");
         var transform = data.AsGodotDictionary()["spawn_transform"].AsTransform3D();
         if (!transform.IsFinite()) throw new ArgumentException("Invalid parasite transform.");
-        Transform = transform; _initialized = true;
+        Transform = transform; RoamingPosition = InitialPosition = transform.Origin; _initialized = true;
     }
     public override void _Ready()
     {
@@ -75,6 +83,7 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
     public override void _Process(double delta)
     {
         if (Multiplayer.IsServer()) Advance(delta);
+        else if (State == ParasiteState.Lurking) GlobalPosition = RoamingPosition;
         var target = Target();
         if (target?.Host is PlayableMech body)
             GlobalTransform = body.GetNode<Node3D>("Presentation/ParasiteAnchor").GlobalTransform;
@@ -89,7 +98,7 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
         string resources = target?.Host is PlayableMech infected ? $"\nEnergy {infected.Gas.Snapshot.Energy:F1}  Heat {infected.Gas.Snapshot.Heat:F1}" : "";
         _status.Text = State switch
         {
-            ParasiteState.Lurking => "PARASITE\nDanger: proximity attachment",
+            ParasiteState.Lurking => ChaseTargetId != 0 ? "PARASITE\nPURSUING" : "PARASITE\nROAMING",
             ParasiteState.Attached => $"PARASITE ATTACHED to {AttachedNetworkObjectId}{resources}\nE: purge (self or teammate)",
             ParasiteState.Purging => $"PURGING mech {AttachedNetworkObjectId}\nOperator {OperatorNetworkObjectId}  {Progress}/{RequiredHits}{resources}",
             _ => "EXPELLED"
@@ -102,6 +111,7 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
         if (IsQueuedForDeletion()) return;
         if (State == ParasiteState.Lurking)
         {
+            MoveThroughExpedition(delta);
             foreach (var actor in NetworkObject.World.Objects.OrderBy(o => o.Id.Value))
             {
                 if (actor.Host is not PlayableMech body || body.IsQueuedForDeletion() || !actor.IsBound ||
@@ -125,6 +135,55 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
             _cursorElapsed -= CursorStepSeconds; _challenge!.Advance(); changed = true;
         }
         if (changed) { CopyChallenge(); Publish("cursor"); }
+    }
+    private void MoveThroughExpedition(double delta)
+    {
+        var run = NetworkObject.World.Objects.Select(o => o.Host).OfType<ExpeditionRun>().FirstOrDefault();
+        if (run is null) return; // Historical isolated encounter fixtures have no room graph.
+        int current = run.RoomAt(GlobalPosition);
+        var target = NetworkObject.World.Objects.Where(o => o.IsBound && o.Host is PlayableMech b &&
+                b.IsInsideTree() && !b.IsQueuedForDeletion() && b.Gas.ParasiteSourceId == 0)
+            .Select(o => new
+            {
+                Object = o,
+                Body = (PlayableMech)o.Host,
+                Path = run.Layout.Path(current, run.RoomAt(((PlayableMech)o.Host).GlobalPosition))
+            })
+            .OrderBy(o => o.Path.Length).ThenBy(o => o.Body.GlobalPosition.DistanceSquaredTo(GlobalPosition)).ThenBy(o => o.Object.Id.Value).FirstOrDefault();
+        // Detection spans three room connections; otherwise wander to an adjacent room.
+        bool chasing = target is not null && target.Path.Length <= 4;
+        int destination = chasing ? run.RoomAt(target!.Body.GlobalPosition) :
+            (_destinationRoom >= 0 ? _destinationRoom : run.Layout.Rooms[current].Connections[(int)(_identity.Value % run.Layout.Rooms[current].Connections.Length)]);
+        long targetId = chasing ? target!.Object.Id.Value : 0;
+        if (destination != _destinationRoom || targetId != ChaseTargetId || _waypoints.Count == 0 && current != destination)
+        {
+            _waypoints.Clear();
+            var path = run.Layout.Path(current, destination);
+            // Keep forward motion when a moving target enters another room. Replanning
+            // must not drag a faster parasite back to the center on every boundary crossing.
+            bool aligned = path.Length > 1 && OnForwardSpoke(run.Center(current), run.Center(path[1]));
+            foreach (int room in path.Skip(aligned || path.Length == 1 && chasing ? 1 : 0))
+                _waypoints.Enqueue(run.Center(room) + Vector3.Up);
+            _destinationRoom = destination; ChaseTargetId = targetId;
+        }
+        Vector3 goal = _waypoints.Count > 0 ? _waypoints.Peek() : chasing ? new(target!.Body.GlobalPosition.X, 1, target.Body.GlobalPosition.Z) : GlobalPosition;
+        GlobalPosition = GlobalPosition.MoveToward(goal, (float)delta * (chasing ? 8 : 2));
+        if (_waypoints.Count > 0 && GlobalPosition.DistanceTo(goal) < 0.05f)
+        {
+            _waypoints.Dequeue();
+            if (_waypoints.Count == 0 && !chasing) _destinationRoom = -1;
+        }
+        int roomNow = run.RoomAt(GlobalPosition);
+        if (_lastRoom >= 0 && roomNow != _lastRoom && run.Layout.Rooms[_lastRoom].Connections.Contains(roomNow)) TraversedConnections++;
+        _lastRoom = roomNow;
+        RoamingPosition = GlobalPosition;
+    }
+    private bool OnForwardSpoke(Vector3 center, Vector3 next)
+    {
+        var forward = (next - center).Normalized();
+        var offset = GlobalPosition - center; offset.Y = 0;
+        float progress = offset.Dot(forward);
+        return progress >= 0 && (offset - forward * progress).Length() < 0.5f;
     }
     private NetworkObject? Target()
     {
@@ -246,6 +305,7 @@ public partial class Parasite : Node3D, INetworkSpawnInitializable, IInteractabl
     public override void _ExitTree()
     {
         ClearLoad(); StopChallenge(); AttachedNetworkObjectId = 0;
+        _waypoints.Clear(); ChaseTargetId = 0;
         if (_replication is not null) { _replication.Synchronized -= Observe; _replication.DeltaSynchronized -= Observe; }
         CleanedUp = true;
     }

@@ -73,16 +73,16 @@ until field-part gameplay supplies evidence for per-part stored charge. Fresh
 initialization is explicit, never an installation/repair refill. See
 [the resource contract](docs/energy-heat.md). Keep resources outside rollback.
 
-Read [the run loop](docs/run-loop.md) for the current finite authored mode.
-PrototypeRunContent implements IRoundContent; the server owns its 600-second
-deadline, objective transition, two delayed return-route parasites and all-live-body
-extraction. SurveyBeacon uses the existing validated interaction path. Clients
-observe replicated state only. Terminal results cannot change. The existing shell
-returns the retained session to its lobby once after a brief result display.
-Normal rounds contain three optional SalvageMachines, useful imperfect Cooling/Power
-rewards, no free debug loot, and no parasite until objective activation. Fresh
-rounds reset all state and create new part/object identities. Keep pure run rules
-small; runtime composition belongs in the existing -RunLoop probe mode.
+Read [the expedition](docs/expedition.md) for normal run composition.
+PrototypeRunContent implements IRoundContent. The server spawns ExpeditionRun
+with one seed; all peers build matching static room collision from its pure
+ExpeditionLayout. Keep room templates editable under world/rooms with clear
+center-to-cardinal-door paths. Five existing SalvageMachines and three Parasites
+occupy distinct eligible rooms. Three Disabled machine identities unlock distant
+all-active-body extraction. Preserve the 600-second deadline, immutable results,
+disconnect semantics, existing salvage/purge mechanics and fresh round identities.
+Parasite graph pursuit and run mutations stay server-owned, outside rollback.
+Keep pure rules small and acceptance in the existing -RunLoop focused probe.
 
 Damage formulas, repair, environment, movement activity costs, rescue, combat,
 death/revive, progression and persistence remain excluded.
