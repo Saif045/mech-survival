@@ -10,7 +10,7 @@ namespace MechSurvival.World;
 public sealed class ExpeditionLayout
 {
     public sealed record Room(int X, int Z, int Template, int[] Connections);
-    public const int CellSize = 22;
+    public const int CellSize = 42;
     public int Seed { get; }
     public IReadOnlyList<Room> Rooms { get; }
     public int Start => 0;

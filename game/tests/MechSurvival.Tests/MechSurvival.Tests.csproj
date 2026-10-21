@@ -12,6 +12,7 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all" />
     <!-- Compile the exact product rules without loading Godot or its native runtime. -->
+    <Compile Include="../../environment/SafeRecoveryPolicy.cs" Link="Model/SafeRecoveryPolicy.cs" />
     <Compile Include="../../environment/ExpeditionEnvironmentPolicy.cs" Link="Model/ExpeditionEnvironmentPolicy.cs" />
     <Compile Include="../../shell/ExpeditionLayout.cs" Link="Model/ExpeditionLayout.cs" />
     <Compile Include="../../shell/PrototypeRunRules.cs" Link="Model/PrototypeRunRules.cs" />

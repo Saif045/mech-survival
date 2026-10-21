@@ -8,12 +8,12 @@ public class MobilityMovementTests
     [Theory]
     [InlineData(2, true, 6)]
     [InlineData(1.5f, true, 4.5f)]
-    [InlineData(1, true, 3)]
-    [InlineData(0.5f, true, 1.5f)]
-    [InlineData(0, true, 0)]
-    [InlineData(2, false, 0)]
-    [InlineData(0.5f, false, 0)]
-    [InlineData(0, false, 0)]
+    [InlineData(1, true, 3.5f)]
+    [InlineData(0.5f, true, 3.5f)]
+    [InlineData(0, true, 3.5f)]
+    [InlineData(2, false, 3.5f)]
+    [InlineData(0.5f, false, 3.5f)]
+    [InlineData(0, false, 3.5f)]
     public void CanonicalMobilityAndCapabilityDetermineSpeed(float mobility, bool capability, float speed) =>
         Assert.Equal(speed, MobilityMovementPolicy.Speed(mobility, capability));
 

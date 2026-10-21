@@ -25,16 +25,24 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
     private int _lastStorm;
     private double _stormAnnouncement;
     private Label _stormLabel = null!;
-    private Label _hud = null!;
+    private Label _hud = null!, _status = null!;
+    private ProgressBar _energy = null!, _heat = null!;
+    private CanvasLayer _canvas = null!;
+    private double _emergencySeconds;
+    private bool _wasEmergency;
     private Node3D _marker = null!;
     private Label3D _label = null!;
     public override void _Ready()
     {
         ProcessPriority = -100;
-        var canvas = new CanvasLayer(); AddChild(canvas);
+        var canvas = new CanvasLayer(); _canvas = canvas; AddChild(canvas);
         _hud = new Label { Position = new(16, 16), MouseFilter = Control.MouseFilterEnum.Ignore }; _hud.AddThemeFontSizeOverride("font_size", 22); canvas.AddChild(_hud);
-        _stormLabel = new Label { Position = new(320, 50), Text = "STORM INTENSIFYING\nENVIRONMENTAL ZONES ACTIVATING", Modulate = Colors.Orange, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+        _stormLabel = new Label { Position = new(320, 50), Text = "STORM INTENSIFYING", Modulate = Colors.Orange, MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
         _stormLabel.AddThemeFontSizeOverride("font_size", 30); canvas.AddChild(_stormLabel);
+        canvas.AddChild(new Label { Position = new(20,88), Text = "ENERGY", MouseFilter = Control.MouseFilterEnum.Ignore });
+        canvas.AddChild(new Label { Position = new(20,130), Text = "HEAT", MouseFilter = Control.MouseFilterEnum.Ignore });
+        _energy = ResourceBar(canvas, 114); _heat = ResourceBar(canvas, 156);
+        _status = new Label { Position = new(20,185), MouseFilter = Control.MouseFilterEnum.Ignore }; canvas.AddChild(_status);
         _marker = new Node3D(); AddChild(_marker);
         var material = new StandardMaterial3D { AlbedoColor = Colors.LimeGreen, EmissionEnabled = true, Emission = Colors.LimeGreen };
         _marker.AddChild(new MeshInstance3D { Position = new(0, 9, 0), Mesh = new CylinderMesh { TopRadius = 0.35f, BottomRadius = 0.7f, Height = 18 }, MaterialOverride = material });
@@ -57,7 +65,7 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
     public override void _Process(double delta)
     {
         _world ??= GetParent().GetNodeOrNull<NetworkWorld>("NetworkWorld");
-        var run = Expedition; if (run is null) { _hud.Visible = false; _stormLabel.Visible = false; _marker.Visible = false; return; }
+        var run = Expedition; if (run is null) { _canvas.Visible = false; _hud.Visible = false; _stormLabel.Visible = false; _marker.Visible = false; return; }
         var bodies = _world!.Objects.Where(o => o.IsBound && o.Host is PlayableMech b && b.IsInsideTree() && !b.IsQueuedForDeletion()).Select(o => (PlayableMech)o.Host).ToArray();
         if (Multiplayer.IsServer() && Rules is not null)
         {
@@ -68,6 +76,7 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
             if (Rules.Terminal) { _resultElapsed += delta; if (_resultElapsed >= 2 && !_returnRequested && GetParent().GetParent() is OnlineGameplayShell shell) { _returnRequested = true; _ = shell.ReturnToLobbyAsync(); } }
         }
         var view = run.View; var local = bodies.FirstOrDefault(b => b.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").OwnerPeerId.Value == Multiplayer.GetUniqueId());
+        _canvas.Visible = local is not null && !local.GetNode<MechServiceController>("MechServiceController").PanelOpen;
         _hud.Visible = view is not null && local is not null; _marker.Position = ExtractionCenter; _marker.Visible = view?.ObjectiveComplete == true;
         if (view is null) return;
         if (view.StormLevel > _lastStorm) { _lastStorm = view.StormLevel; _stormAnnouncement = 5; }
@@ -75,18 +84,35 @@ public partial class PrototypeRunContent : Node3D, IRoundContent
         _stormLabel.Visible = _hud.Visible && _stormAnnouncement > 0;
         var offset = ExtractionCenter - (local?.GlobalPosition ?? Vector3.Zero);
         string direction = (offset.Z < -3 ? "N" : offset.Z > 3 ? "S" : "") + (offset.X < -3 ? "W" : offset.X > 3 ? "E" : "");
-        string extraction = view.ObjectiveComplete ? $"EXTRACTION ONLINE\nEXTRACTION: {new Vector2(offset.X, offset.Z).Length():0}m {direction}\n{view.Inside} / {view.Active} players" : "EXTRACTION LOCKED";
+
         _label.Text = $"EXTRACTION ONLINE\n{view.Inside} / {view.Active} players";
-        _hud.Text = view.Phase switch { RunPhase.Success => "RUN COMPLETE", RunPhase.Failure => "RUN FAILED — TIME EXPIRED", _ => $"EXPEDITION  /  TIME {view.Seconds / 60:00}:{view.Seconds % 60:00}\nSALVAGE {view.Salvage} / 3\n{extraction}\nSEED {run.Seed}{EnvironmentHud(run, local)}" };
+        string pips = string.Join(" ", Enumerable.Range(0,3).Select(i => i < view.Salvage ? "●" : "○"));
+        _hud.Text = view.Phase switch { RunPhase.Success => "RUN COMPLETE", RunPhase.Failure => "TIME EXPIRED", _ => $"SALVAGE  {pips}      {view.Seconds / 60:00}:{view.Seconds % 60:00}" + (view.ObjectiveComplete ? $"\nEXTRACTION {new Vector2(offset.X,offset.Z).Length():0}m {direction}" : "") };
+        if (local is null) return;
+        var gas = local.Gas.Snapshot;
+        _energy.MaxValue = Math.Max(0.001f,gas.PowerCapacity); _energy.Value = gas.Energy;
+        _heat.Value = gas.Heat;
+        TintBar(_energy, gas.Energy / Math.Max(0.001f,gas.PowerCapacity) < 0.25f ? Colors.OrangeRed : Colors.MediumTurquoise);
+        TintBar(_heat, gas.Heat >= 95 ? Colors.Red : gas.Heat >= 65 ? Colors.Orange : Colors.Goldenrod);
+        var exposure = view.Exposures?.FirstOrDefault(e => e.BodyId == local.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").Id.Value);
+        bool emergency = local.GasMoveSpeed <= MobilityMovementPolicy.EmergencyMinimum;
+        if (emergency && !_wasEmergency) _emergencySeconds = 4;
+        _wasEmergency = emergency; _emergencySeconds = Math.Max(0,_emergencySeconds-delta);
+        _status.Text = (exposure is { Active: true } ? "! " + exposure.Kind.ToString().ToUpperInvariant() + "\n" : "")
+            + (exposure?.Recovering == true ? "◇ STABILIZING\n" : "") + (exposure?.Damage ?? "")
+            + (_emergencySeconds > 0 ? "\nEMERGENCY LOCOMOTION" : "");
     }
-    private string EnvironmentHud(ExpeditionRun run, PlayableMech? local)
+    private static ProgressBar ResourceBar(CanvasLayer canvas, float y)
     {
-        var exposure = run.View?.Exposures?.FirstOrDefault(e => local is not null && e.BodyId == local.GetNode<GameFactory.Networking.Objects.NetworkObject>("NetworkObject").Id.Value);
-        string status = exposure is null || exposure.Kind == EnvironmentKind.Safe ? "SAFE" : exposure.Kind.ToString().ToUpperInvariant() + (exposure.Active ? "" : " — DORMANT");
-        string load = exposure is { Active: true } ? exposure.Kind switch { EnvironmentKind.Thermal => $"HEAT LOAD +{exposure.HeatLoad:F1}/s", EnvironmentKind.Electrical => $"ENERGY DRAIN +{exposure.EnergyDrain:F1}/s", EnvironmentKind.Corrosive => "STRUCTURAL DEGRADATION", _ => "" } : "";
-        return $"\nSTORM: {ExpeditionEnvironmentPolicy.PhaseName(run.View?.StormLevel ?? 0)}\nENVIRONMENT: {status}\n{load}\nENERGY {local?.Gas.Snapshot.Energy:F1}    HEAT {local?.Gas.Snapshot.Heat:F1}\n{exposure?.Damage}";
+        var bar = new ProgressBar { Position = new(20,y), Size = new(250,12), MaxValue = 100, ShowPercentage = false, MouseFilter = Control.MouseFilterEnum.Ignore };
+        canvas.AddChild(bar); return bar;
+    }
+    private static void TintBar(ProgressBar bar, Color color)
+    {
+        if (bar.GetThemeStylebox("fill") is StyleBoxFlat existing && existing.BgColor == color) return;
+        bar.AddThemeStyleboxOverride("fill", new StyleBoxFlat { BgColor = color });
     }
     public bool InsideExtraction(Vector3 position) => new Vector2(position.X - ExtractionCenter.X, position.Z - ExtractionCenter.Z).Length() <= ExtractionRadius && Math.Abs(position.Y) <= 4;
     private void Publish(int inside, int active) => Expedition!.Publish(new(Rules!.Phase, (int)Math.Ceiling(Rules.RemainingSeconds), Rules.ObjectiveComplete, inside, active, Rules.SalvageCount, Expedition.Environment.StormLevel, Expedition.Environment.Exposures));
-    public void ResetRound() { _lastStorm = 0; _stormAnnouncement = 0; if (_stormLabel is not null) _stormLabel.Visible = false; Expedition?.Environment.Clear(); Rules = null; _resultElapsed = 0; _returnRequested = false; if (_hud is not null) _hud.Visible = false; if (_marker is not null) _marker.Visible = false; }
+    public void ResetRound() { _emergencySeconds = 0; _wasEmergency = false; _lastStorm = 0; _stormAnnouncement = 0; if (_stormLabel is not null) _stormLabel.Visible = false; Expedition?.Environment.Clear(); Rules = null; _resultElapsed = 0; _returnRequested = false; if (_hud is not null) _hud.Visible = false; if (_marker is not null) _marker.Visible = false; }
 }

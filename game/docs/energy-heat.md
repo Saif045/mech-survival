@@ -137,5 +137,17 @@ and cooling. Nonfinite/negative environmental inputs reject before mutation;
 zero inputs retain the accepted result. Clearing the environmental input never
 clears parasite load or current Energy/Heat, and vice versa. ResetResourceState
 and teardown clear both environmental rates. Normal expedition players use the
-policy's 0.01/s idle drain; generic resource defaults remain 0.1/s. See
+policy's zero idle drain and 0.05 Energy/Heat cooling cost; generic resource
+defaults remain 0.1/s and 0.25 Energy/Heat. See
 [environment](environment.md) for storm-scaled rates and runtime acceptance.
+
+## Safe expedition Energy recovery
+
+The server environment controller enables concrete recovery only after 2.5
+stationary uninfected seconds in Safe/dormant terrain. RecoverSafeEnergy applies
+one Energy/second through the same native adapter and snapshot publication,
+capped by current canonical PowerCapacity; clients cannot call it successfully.
+It preserves Heat, native effects and structural state. Affordable cooling keeps
+running. Moving, a parasite or an active hazard stops recovery immediately.
+No movement Energy cost, battery, recharge item or generic regeneration layer
+exists. Energy/Heat appear as bars in normal play, with exact values under Tab.

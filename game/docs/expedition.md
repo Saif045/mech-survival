@@ -1,6 +1,6 @@
 # Random expedition v1
 
-The normal ten-minute run explores a connected facility, salvages three machines,
+The normal ten-minute run explores a branching open industrial landscape, salvages three machines,
 and extracts every currently active mech. SurveyBeacon and the fixed corridor
 are retired. Shell/player/disconnect/teardown ownership remains in GameFactory.
 
@@ -10,11 +10,11 @@ The server spawns one server-owned ExpeditionRun with an integer seed in spawn
 initialization. Every peer synchronously generates its static collision geometry
 from that seed before ExpeditionRun finishes entering the tree. Clients do not
 choose seeds or advance run rules. Normal rounds choose a fresh random seed;
-focused probes explicitly select fixed seeds. The HUD shows the seed.
+focused probes explicitly select fixed seeds. The seed and layout/environment signatures appear in debug output only.
 
 ExpeditionLayout is a small pure generator with its own specified 32-bit LCG,
 ordered frontier enumeration and SHA-256-derived 16-hex-digit layout signature.
-Default size is 18 rooms (supported range 16–20), with 22-unit cardinal cells.
+Default size is 18 rooms (supported range 16–20), with 42-unit cardinal sectors.
 An initial four-room square guarantees a loop; random frontier growth fills the
 facility, and three reserved cells extend a service spur with a guaranteed dead
 end. All adjacent cells connect symmetrically, providing further alternate paths.
@@ -29,8 +29,9 @@ maintenance, machinery, loading and damaged. Each has its own floor material,
 landmark and obstacle dimensions. Edit these scenes for level-design changes.
 Keep a clear cross from the center to each cardinal doorway; preserve the
 positive-X/positive-Z salvage bay at (+4,+4). Geometry is authored, not randomized
-prop scatter. ExpeditionRun adds solid missing-exit walls or six-unit doorways
-between neighboring room floors. Generated geometry belongs to the run object
+prop scatter. ExpeditionRun adds low industrial debris banks, container barriers, pipe walls
+and tanks on disconnected edges, with 16-unit open passages on connected edges.
+Sparse enlarged obstacles leave sightlines between sectors and clear center routes. Generated geometry belongs to the run object
 and disappears with it on reset.
 
 ## Encounters and objective
@@ -56,7 +57,11 @@ No NavMesh or general AI system is introduced.
 
 ## Extraction and HUD
 
-HUD displays EXPEDITION, SALVAGE n / 3, extraction lock state, timer and seed.
+Normal HUD shows three filled/unfilled salvage pips, the run timer, Energy and
+Heat bars without numbers, one active hazard chip, brief damage/storm alerts and
+a compact color-coded mech schematic. Safe/dormant zones carry no large warning.
+A small STABILIZING state identifies valid safe recovery. Detailed resource and
+part numbers live under Tab; seed, rates and signatures stay in debug output.
 After quota, a tall green beam, floor ring and large world label activate in the
 selected distant room. The HUD gives horizontal distance and compass direction.
 Success needs every live active body inside the 4.5-unit extraction radius; zero
@@ -79,17 +84,33 @@ human visual acceptance. No Steam/VM test is requested.
 new enemies/minigames, inventory, revive, perks, progression, persistence,
 minimaps, procedural meshes and final environment art remain excluded.
 
-Current validation: build and 144 product tests passed. Offline
-`expedition_offline_20261020_04` and local two-peer
-`expedition_multiplayer_20261020_02` passed with frozen sources/build and verified
-process/profile/port cleanup. The client explicitly observed parasite motion and
-target identity; extraction stayed active with only one of two players present.
-Seed 120000 produced signature FF0CFD1B7C7D6F38 (18 rooms, 21 connections,
-extraction nine graph edges from entry). Reset seed 654321 produced
-241B92EEDECC3939 (18 rooms, 20 connections). Validation and preserved failed
-attempt history live in `game/artifacts/run_loop/expedition_acceptance_20261020/summary.json`.
+## Third-person control and recovery
 
-Task 14 keeps the geometry/encounter stream and LayoutSignature stable, adds a
-separate EnvironmentSignature and replicates storm/per-body exposure through
-ExpeditionRun's observation. Start/extraction stay Safe. See environment.md for
-rates, damage ownership, composition with parasites and fresh-round cleanup.
+The owner camera orbits with mouse motion, starts eight meters behind at about
+three meters above the mech, and zooms from 6.5 to 9.5 meters with the wheel.
+Pitch is clamped from -0.7 to 0.12 radians; local ray collision pulls the camera
+in around obstacles. WASD rotates by local camera yaw before entering the same
+Vector2 rollback input. Camera state and authoritative body orientation remain
+outside that input; Netfox still owns physical movement and GAS owns speed.
+Tab releases the mouse and disables look while the world continues. Closing
+Tab recaptures the mouse. Existing pause-menu behavior remains deferred.
+
+Playable speed is max(3.5, canonical Mobility * 3), with absent mobility using
+the same emergency floor. Pristine speed remains six; damage still slows a mech
+above the floor. A brief EMERGENCY LOCOMOTION alert marks entry into the floor.
+Generic non-player bodies do not gain locomotion.
+
+Safe or dormant terrain supports recovery after 2.5 stationary, uninfected
+seconds. Moving, infection or active hazard cancels recovery and resets its
+wait immediately. Energy restores at one per second up to canonical capacity;
+normal affordable cooling continues. Every 3.5 recovering seconds, the lowest
+installed eligible module gains 0.05 condition, capped at 0.50. Eligible slots
+are Sensor, both legs, Power and Cooling, including offline installed modules.
+Ties follow that fixed order. Missing modules, Core, Torso and arms are excluded.
+Exact instances/IDs stay installed; existing GAS reconciliation owns the result.
+Full repair still requires salvage/replacement. See [environment](environment.md).
+
+The deterministic layout/encounter stream and LayoutSignature are unchanged by
+physical sector scaling. Required acceptance includes product tests and the
+focused offline/local two-peer -RunLoop paths; detailed evidence stays in artifacts.
+Human host + VM playtesting remains the final go/no-go judgment.

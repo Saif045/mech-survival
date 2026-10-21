@@ -94,7 +94,7 @@ public partial class PlayableMechProbe : Node
                 _gameplay.Start();
                 await Until(() => _connected);
                 RpcId(1, MethodName.HelloRpc);
-                await Until(() => _finished, runLoop ? 600000UL : 90000UL);
+                await Until(() => _finished, runLoop ? 1200000UL : 90000UL);
                 GD.Print(parasite ? "PLAYABLE_CLIENT_PASS parasite_rounds=3" : "PLAYABLE_CLIENT_PASS bidirectional=true guards=true rounds=2");
             }
             else if (runLoop)
@@ -281,7 +281,7 @@ public partial class PlayableMechProbe : Node
         string[] labels = ["pristine", "partial", "one_leg", "modifier", "modifier_damage", "modifier_removed", "modifier_reapplied", "modifier_gate", "zero", "restored"];
         float[] mobility = [2, 1.5f, 1, 1.5f, 1, 0.5f, 1, 0.5f, 0, 2];
         float[] structural = [2, 1.5f, 1, 1, 0.5f, 0.5f, 0.5f, 0, 0, 2];
-        float[] speed = [6, 4.5f, 3, 4.5f, 3, 1.5f, 3, 0, 0, 6];
+        float[] speed = [6, 4.5f, 3.5f, 4.5f, 3.5f, 3.5f, 3.5f, 3.5f, 3.5f, 6];
         for (int i = 0; i < labels.Length; i++)
         {
             foreach (var body in Bodies)

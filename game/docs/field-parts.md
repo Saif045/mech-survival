@@ -42,7 +42,11 @@ Tab toggles the owner-only Mech Status / Service panel without pausing the
 multiplayer game. All nine rows display installed model, condition and effective
 physical contribution/capabilities, or EMPTY. Row buttons explicitly select a
 target slot, including independent arms/legs. E picks up and Q drops as before.
-A compact status list remains while closed, including carried model/condition.
+A compact module schematic remains while closed, colored by condition/offline
+state, alongside a short carried-model hint. The Tab panel adds condition bars,
+percentages and only each part's actual nonzero base contributions/capabilities;
+structural-only modules show no irrelevant zero stats. Opening releases the
+mouse and disables camera look; closing recaptures it without pausing gameplay.
 
 When carrying a LooseMechPart, the panel shows its compatible slots and compares
 CURRENT / CARRIED / CHANGE for the selected slot. MechPartReadout formats the
@@ -82,12 +86,18 @@ than silently losing either part; no transaction framework is introduced.
 
 Body changes flow through the existing structural projection and native Mech GAS.
 The service controller calculates no Mobility or other stats. Two pristine legs
-produce Mobility 2 / speed 6; detaching one gives 1 / 3; reinstalling restores
+produce Mobility 2 / speed 6; detaching one gives 1 / 3.5 (emergency floor); reinstalling restores
 2 / 6; substituting the condition-0.8 field leg gives 1.8 / 5.4. Leg service does
 not reset Energy or Heat. Existing capacity clamping/no-refill behavior remains
 owned by GAS/resources; service never initializes resources.
 
-Exclusions: repair, loose-part damage/condition changes, per-power-module charge,
+Safe expedition stabilization changes installed functional module condition by
+0.05 every 3.5 recovering seconds, capped at 50%, through NetworkMechBody while
+preserving exact instances and IDs. It excludes Core, Torso, arms and empty slots.
+Full/good condition still comes from salvage/replacement; it never refills Energy
+on install. See [environment](environment.md) for eligibility and cancellation.
+
+Exclusions: repair items, loose-part damage/condition changes, per-power-module charge,
 stored inventory, wrecks/dead bodies, throw physics, persistence, loot tables,
 economy, new hazards, final UI/animation/meshes.
 

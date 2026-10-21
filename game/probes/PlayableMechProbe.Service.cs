@@ -50,7 +50,7 @@ public partial class PlayableMechProbe
     private static void ServiceGas(PlayableMech body, float mobility)
     {
         Require(Math.Abs(body.GasMobility - mobility) < 0.0001f && body.GasHasMobility &&
-            Math.Abs(body.GasMoveSpeed - mobility * 3) < 0.0001f, "Service did not change canonical Mobility/speed.");
+            Math.Abs(body.GasMoveSpeed - Math.Max(MobilityMovementPolicy.EmergencyMinimum, mobility * 3)) < 0.0001f, "Service did not change canonical Mobility/speed.");
         Require(body.Gas.ReadSnapshot() == body.Gas.Snapshot && body.Gas.Snapshot.Serialize() == body.GasState && body.Gas.UsesRealAsc,
             "Service bypassed native GAS.");
         Require(body.Gas.Snapshot.Energy == 6 && body.Gas.Snapshot.Heat == 12, "Leg service reset Energy/Heat.");

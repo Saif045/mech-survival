@@ -48,8 +48,9 @@ public partial class ExpeditionRun : Node3D, INetworkSpawnInitializable
             foreach (var d in cardinal)
             {
                 bool open = room.Connections.Any(n => Center(n) - Center(i) == d * ExpeditionLayout.CellSize);
-                if (open) { Wall(chunk, d * 11 + new Vector3(d.Z * 7, 0, d.X * 7), d.X == 0 ? new(8, 4, 0.4f) : new(0.4f, 4, 8)); Wall(chunk, d * 11 - new Vector3(d.Z * 7, 0, d.X * 7), d.X == 0 ? new(8, 4, 0.4f) : new(0.4f, 4, 8)); }
-                else Wall(chunk, d * 11, d.X == 0 ? new(22, 4, 0.4f) : new(0.4f, 4, 22));
+                // Low industrial banks preserve sightlines; blocked edges retain graph collision.
+                if (open) { Wall(chunk, d * 21 + new Vector3(d.Z * 14.5f, 0, d.X * 14.5f), d.X == 0 ? new(13, 2, 2) : new(2, 2, 13), room.Template); Wall(chunk, d * 21 - new Vector3(d.Z * 14.5f, 0, d.X * 14.5f), d.X == 0 ? new(13, 2, 2) : new(2, 2, 13), room.Template); }
+                else Wall(chunk, d * 21, d.X == 0 ? new(42, 2.6f, 3) : new(3, 2.6f, 42), room.Template);
             }
         }
         GD.Print($"EXPEDITION seed={Seed} signature={Layout.Signature} rooms={Layout.Rooms.Count} connections={Layout.Rooms.Sum(r => r.Connections.Length) / 2}");
@@ -59,9 +60,9 @@ public partial class ExpeditionRun : Node3D, INetworkSpawnInitializable
         if (plan.Kind == EnvironmentKind.Safe) return;
         var color = plan.Kind switch { EnvironmentKind.Thermal => Colors.OrangeRed, EnvironmentKind.Electrical => Colors.Cyan, _ => Colors.GreenYellow };
         var material = new StandardMaterial3D { AlbedoColor = color, EmissionEnabled = true, Emission = color, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
-        var floor = new MeshInstance3D { Position = new(0, 0.025f, 0), Mesh = new BoxMesh { Size = new(21, 0.025f, 21) }, MaterialOverride = material }; chunk.AddChild(floor);
+        var floor = new MeshInstance3D { Position = new(0, 0.025f, 0), Mesh = new BoxMesh { Size = new(40, 0.025f, 40) }, MaterialOverride = material }; chunk.AddChild(floor);
         // Noncolliding silhouettes leave all authored navigation spokes clear.
-        for (int n = 0; n < 3; n++) chunk.AddChild(new MeshInstance3D { Position = new(-8 + n * 2, 2, 8), Mesh = plan.Kind == EnvironmentKind.Corrosive ? new BoxMesh { Size = new(1.4f, 4, 1.4f) } : new CylinderMesh { TopRadius = 0.25f, BottomRadius = 0.6f, Height = 4 }, MaterialOverride = material });
+        for (int n = 0; n < 3; n++) chunk.AddChild(new MeshInstance3D { Position = new(-14 + n * 3, 2, 14), Mesh = plan.Kind switch { EnvironmentKind.Corrosive => new SphereMesh { Radius = 2, Height = 3 }, EnvironmentKind.Electrical => new BoxMesh { Size = new(1.5f,4,1.5f) }, _ => new CylinderMesh { TopRadius = 0.8f, BottomRadius = 1.2f, Height = 2 } }, MaterialOverride = material });
         var label = new Label3D { Position = new(0, 6, 0), FontSize = 54, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, Modulate = color }; chunk.AddChild(label);
         _hazards.Add((floor, material, label, plan));
     }
@@ -74,15 +75,35 @@ public partial class ExpeditionRun : Node3D, INetworkSpawnInitializable
             var color = hazard.Material.AlbedoColor; color.A = active ? 0.18f + 0.05f * MathF.Sin(Time.GetTicksMsec() * 0.004f) : 0.045f;
             hazard.Material.AlbedoColor = color; hazard.Material.EmissionEnergyMultiplier = active ? 1.5f : 0.15f;
             string title = hazard.Plan.Kind switch { EnvironmentKind.Thermal => "THERMAL LEAK", EnvironmentKind.Electrical => "ELECTRICAL INTERFERENCE", _ => "CORROSIVE ATMOSPHERE" };
-            hazard.Label.Text = title + (active ? "\nACTIVE" : "\nDORMANT — STORM " + hazard.Plan.ActivationLevel);
+            hazard.Label.Text = active ? title : "";
         }
     }
     public override void _ExitTree() { if (Multiplayer.IsServer()) Environment?.Clear(); }
-    private static void Wall(Node3D parent, Vector3 position, Vector3 size)
+    private static void Wall(Node3D parent, Vector3 position, Vector3 size, int style)
     {
-        var body = new StaticBody3D { Position = position + Vector3.Up * 2 }; parent.AddChild(body);
+        var body = new StaticBody3D { Position = position + Vector3.Up * (size.Y / 2) }; parent.AddChild(body);
         body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = size } });
-        body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = size }, MaterialOverride = new StandardMaterial3D { AlbedoColor = Colors.SlateGray } });
+        var material = new StandardMaterial3D { AlbedoColor = style switch {
+            0 => new(0.32f,0.29f,0.22f), 1 => new(0.25f,0.35f,0.38f), 2 => new(0.4f,0.28f,0.17f),
+            3 => new(0.27f,0.31f,0.3f), 4 => new(0.42f,0.35f,0.18f), _ => new(0.25f,0.24f,0.27f) } };
+        bool horizontal = size.X > size.Z;
+        int sections = (int)Math.Max(size.X,size.Z) / 6;
+        for (int n=0;n<sections;n++)
+        {
+            float along = (n-(sections-1)*0.5f)*6;
+            Vector3 offset = horizontal ? new(along,0,0) : new(0,0,along);
+            var mesh = new MeshInstance3D { Position = offset, MaterialOverride = material };
+            if (style == 2) {
+                mesh.Mesh = new CylinderMesh { TopRadius = size.Y/2, BottomRadius = size.Y/2, Height = 6.1f };
+                mesh.Rotation = horizontal ? new(0,0,Mathf.Pi/2) : new(Mathf.Pi/2,0,0);
+            } else if (style == 3) {
+                mesh.Mesh = new CylinderMesh { TopRadius = 2.4f, BottomRadius = 2.4f, Height = size.Y + (n%2)*1.2f };
+            } else {
+                mesh.Mesh = new BoxMesh { Size = horizontal ? new(6.1f,size.Y+(n%2)*0.35f,size.Z) : new(size.X,size.Y+(n%2)*0.35f,6.1f) };
+                if (style == 0 || style == 5) mesh.Rotation = new(0,0,(n%2==0?1:-1)*0.12f);
+            }
+            body.AddChild(mesh);
+        }
     }
     internal void Publish(Observation view) { if (!Multiplayer.IsServer()) throw new InvalidOperationException("Server-owned run state."); RunState = JsonSerializer.Serialize(view); }
 }

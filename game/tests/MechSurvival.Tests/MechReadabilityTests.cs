@@ -37,7 +37,7 @@ public class MechReadabilityTests
         Assert.Contains("Debug Arm", MechPartReadout.Installed(view, MechSlot.LeftArm));
         Assert.Equal(part, view.GetPart(MechSlot.LeftArm));
         Assert.Equal("Left Arm", MechPartReadout.SlotName(MechSlot.LeftArm));
-        Assert.Equal("Structural module", MechPartReadout.Describe(definition, 0.75f));
+        Assert.Equal("", MechPartReadout.Describe(definition, 0.75f));
         Assert.Equal("No physical contribution change", MechPartReadout.Change(part, definition, 1));
     }
 }

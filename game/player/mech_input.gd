@@ -19,7 +19,10 @@ func _process(_delta: float) -> void:
 func _gather_input() -> void:
 	if not is_multiplayer_authority():
 		return
-	movement = Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
+	var raw := Input.get_vector("move_left", "move_right", "move_forward", "move_backward")
+	var yaw: float = get_parent().get_node("Presentation/Camera3D").orbit_yaw
+	var world := Vector3(raw.x, 0, raw.y).rotated(Vector3.UP, yaw)
+	movement = Vector2(world.x, world.z)
 	jump_pressed = _jump_queued
 	_jump_queued = false
 	if jump_pressed:

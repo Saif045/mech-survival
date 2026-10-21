@@ -6,43 +6,43 @@ albedo_color = Color(0.34, 0.26, 0.15, 1)
 
 [sub_resource type="BoxMesh" id="floor_mesh"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="floor_shape"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 [sub_resource type="BoxMesh" id="prop_mesh_0"]
 
-size = Vector3(5, 3, 4)
+size = Vector3(8, 3.75, 6.4)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_0"]
 
-size = Vector3(5, 3, 4)
+size = Vector3(8, 3.75, 6.4)
 
 [sub_resource type="BoxMesh" id="prop_mesh_1"]
 
-size = Vector3(4, 4, 4)
+size = Vector3(6.4, 5, 6.4)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_1"]
 
-size = Vector3(4, 4, 4)
+size = Vector3(6.4, 5, 6.4)
 
 [sub_resource type="BoxMesh" id="prop_mesh_2"]
 
-size = Vector3(4, 2, 4)
+size = Vector3(6.4, 2.5, 6.4)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_2"]
 
-size = Vector3(4, 2, 4)
+size = Vector3(6.4, 2.5, 6.4)
 
 [node name="storage" type="Node3D"]
 
@@ -60,7 +60,7 @@ shape = SubResource("floor_shape")
 
 [node name="Landmark" type="Label3D" parent="."]
 
-position = Vector3(-6, 7, -6)
+position = Vector3(-10.8, 7, -10.8)
 
 text = "STORAGE"
 
@@ -70,7 +70,7 @@ billboard = 1
 
 [node name="Obstacle0" type="StaticBody3D" parent="."]
 
-position = Vector3(-6, 1.5, -6)
+position = Vector3(-10.8, 1.875, -10.8)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle0"]
 
@@ -82,7 +82,7 @@ shape = SubResource("prop_shape_0")
 
 [node name="Obstacle1" type="StaticBody3D" parent="."]
 
-position = Vector3(6, 2, -6)
+position = Vector3(10.8, 2.5, -10.8)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle1"]
 
@@ -94,7 +94,7 @@ shape = SubResource("prop_shape_1")
 
 [node name="Obstacle2" type="StaticBody3D" parent="."]
 
-position = Vector3(-6, 1, 6)
+position = Vector3(-10.8, 1.25, 10.8)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle2"]
 

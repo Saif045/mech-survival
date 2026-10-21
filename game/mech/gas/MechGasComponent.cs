@@ -105,6 +105,14 @@ public partial class MechGasComponent : Node
         RequireServer(); EnergyHeatPolicy.Nonnegative(unitsPerSecond, nameof(unitsPerSecond));
         _externalHeatLoad = unitsPerSecond;
     }
+    // Concrete server recovery input; current resources still live in the native ASC.
+    internal void RecoverSafeEnergy(float delta)
+    {
+        RequireServer(); EnergyHeatPolicy.Nonnegative(delta, nameof(delta));
+        var current = ReadSnapshot();
+        _gas!.ApplyResources(new(MechSurvival.Environment.SafeRecoveryPolicy.RecoveredEnergy(current.Energy, current.PowerCapacity, delta), current.Heat));
+        Publish();
+    }
     public void SetEnvironmentalLoads(float energyDrain, float heatLoad)
     {
         RequireServer();

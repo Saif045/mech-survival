@@ -33,10 +33,10 @@ public class EnvironmentTests
         for(int s=0;s<4;s++)
         {
             if(s>0)Assert.True(ExpeditionEnvironmentPolicy.Intensity(s)>ExpeditionEnvironmentPolicy.Intensity(s-1));
-            Assert.Equal((0f,6*ExpeditionEnvironmentPolicy.Intensity(s)),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Thermal,0),s));
-            Assert.Equal((0.4f*ExpeditionEnvironmentPolicy.Intensity(s),0f),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Electrical,0),s));
+            Assert.Equal((0f,1.5f*ExpeditionEnvironmentPolicy.Intensity(s)),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Thermal,0),s));
+            Assert.Equal((0.08f*ExpeditionEnvironmentPolicy.Intensity(s),0f),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Electrical,0),s));
             Assert.Equal((0f,0f),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Safe,0),s));
-            Assert.Equal(0.03f*ExpeditionEnvironmentPolicy.Intensity(s),ExpeditionEnvironmentPolicy.CorrosionAmount(s));
+            Assert.Equal(0.02f*ExpeditionEnvironmentPolicy.Intensity(s),ExpeditionEnvironmentPolicy.CorrosionAmount(s));
         }
         Assert.Equal((0f,0f),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Thermal,2),1));
         Assert.Equal((0f,0f),ExpeditionEnvironmentPolicy.Loads(new(EnvironmentKind.Electrical,2),0));

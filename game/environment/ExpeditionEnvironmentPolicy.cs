@@ -18,10 +18,10 @@ public sealed record RoomEnvironment(EnvironmentKind Kind, int ActivationLevel)
 /// <summary>One concrete expedition's tuning, deterministic plan and structural target policy.</summary>
 public sealed class ExpeditionEnvironmentPolicy
 {
-    public const double DefaultStormPhaseSeconds = 120, DamagePulseSeconds = 2;
-    public const float ThermalHeat = 6, ElectricalDrain = 0.4f, CorrosionDamage = 0.03f;
-    public const float CriticalHeat = 95, OverheatDamage = 0.03f, ExpeditionIdleDrain = 0.01f;
-    public static EnergyHeatSettings ResourceSettings => new(ExpeditionIdleDrain, 1, 0.25f);
+    public const double DefaultStormPhaseSeconds = 120, DamagePulseSeconds = 8, OverheatPulseSeconds = 6;
+    public const float ThermalHeat = 1.5f, ElectricalDrain = 0.08f, CorrosionDamage = 0.02f;
+    public const float CriticalHeat = 95, OverheatDamage = 0.02f, ExpeditionIdleDrain = 0;
+    public static EnergyHeatSettings ResourceSettings => new(ExpeditionIdleDrain, 1, 0.05f);
     private static readonly float[] Intensities = { 0.75f, 1, 1.35f, 1.7f };
     private static readonly string[] Phases = { "CALM", "UNSTABLE", "SEVERE", "CRITICAL" };
     private static readonly MechSlot[] FunctionalSlots = { MechSlot.Sensor, MechSlot.LeftLeg, MechSlot.RightLeg, MechSlot.Power, MechSlot.Cooling };
@@ -44,7 +44,7 @@ public sealed class ExpeditionEnvironmentPolicy
             EnvironmentKind.Electrical, EnvironmentKind.Thermal, EnvironmentKind.Corrosive, EnvironmentKind.Electrical, EnvironmentKind.Thermal };
         for (int i = 0; i < kinds.Length; i++) rooms[eligible[i]] = new(kinds[i], i == 0 ? 0 : 1 + Next(2));
         Rooms = Array.AsReadOnly(rooms);
-        string config = FormattableString.Invariant($"v1|phase={stormPhaseSeconds:R}|heat={ThermalHeat:R}|drain={ElectricalDrain:R}|corrosion={CorrosionDamage:R}|pulse={DamagePulseSeconds:R}|critical={CriticalHeat:R}|overheat={OverheatDamage:R}|idle={ExpeditionIdleDrain:R}|intensity=0.75,1,1.35,1.7|coolingScale=1|coolingCost=0.25|slots=Sensor,LeftLeg,RightLeg,Power,Cooling");
+        string config = FormattableString.Invariant($"v2|phase={stormPhaseSeconds:R}|heat={ThermalHeat:R}|drain={ElectricalDrain:R}|corrosion={CorrosionDamage:R}|pulse={DamagePulseSeconds:R}|critical={CriticalHeat:R}|overheat={OverheatDamage:R}|idle={ExpeditionIdleDrain:R}|intensity=0.75,1,1.35,1.7|coolingScale=1|coolingCost=0.05|overheatPulse=6|slots=Sensor,LeftLeg,RightLeg,Power,Cooling");
         string data = config + "|" + string.Join(";", rooms.Select(r => $"{(int)r.Kind}:{r.ActivationLevel}"));
         Signature = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(data)))[..16];
     }

@@ -6,33 +6,33 @@ albedo_color = Color(0.19, 0.29, 0.3, 1)
 
 [sub_resource type="BoxMesh" id="floor_mesh"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="floor_shape"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 [sub_resource type="BoxMesh" id="prop_mesh_0"]
 
-size = Vector3(3, 2, 3)
+size = Vector3(4.8, 2.5, 4.8)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_0"]
 
-size = Vector3(3, 2, 3)
+size = Vector3(4.8, 2.5, 4.8)
 
 [sub_resource type="BoxMesh" id="prop_mesh_1"]
 
-size = Vector3(4, 1.2, 3)
+size = Vector3(6.4, 1.5, 4.8)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_1"]
 
-size = Vector3(4, 1.2, 3)
+size = Vector3(6.4, 1.5, 4.8)
 
 [node name="yard" type="Node3D"]
 
@@ -50,7 +50,7 @@ shape = SubResource("floor_shape")
 
 [node name="Landmark" type="Label3D" parent="."]
 
-position = Vector3(-6, 7, -6)
+position = Vector3(-10.8, 7, -10.8)
 
 text = "YARD"
 
@@ -60,7 +60,7 @@ billboard = 1
 
 [node name="Obstacle0" type="StaticBody3D" parent="."]
 
-position = Vector3(-7, 1, -7)
+position = Vector3(-12.6, 1.25, -12.6)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle0"]
 
@@ -72,7 +72,7 @@ shape = SubResource("prop_shape_0")
 
 [node name="Obstacle1" type="StaticBody3D" parent="."]
 
-position = Vector3(7, 0.6, -7)
+position = Vector3(12.6, 0.75, -12.6)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle1"]
 

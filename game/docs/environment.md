@@ -1,4 +1,4 @@
-# Expedition environment v1
+# Expedition environment
 
 The expedition environment is one concrete game-owned policy/controller. It owns
 room exposures and clocks, and calls existing GAS input and NetworkMechBody damage
@@ -13,7 +13,7 @@ normal 18-room plan contains eight Safe, four Thermal, three Electrical and thre
 Corrosive rooms. Entry and extraction are always Safe. First salvage placement is
 Thermal and second is Corrosive, both initially active. An initially active
 Electrical room also always exists. Remaining hazards activate at level 1 or 2.
-All hazardous rooms are labeled even while dormant. Safe rooms never activate.
+Dormant zones stay visually subdued without large warnings. Safe sectors never activate.
 
 EnvironmentSignature separately hashes room kinds/activation levels, phase
 length, intensity, functional target set and environmental/resource tuning. Spawn
@@ -29,12 +29,12 @@ the existing run observation. Clients never advance the environment clock.
 | StormPhaseSeconds | 120 normal; authored on PrototypeRunContent |
 | Calm / Unstable / Severe / Critical | elapsed 0 / 120 / 240 / 360 seconds |
 | Intensity | 0.75 / 1.00 / 1.35 / 1.70 |
-| Thermal input | 6 Heat/s times intensity |
-| Electrical input | 0.4 Energy/s times intensity |
-| Corrosion | one eligible installed part every 2 exposed seconds; 0.03 condition times intensity |
-| Sustained overheat | Heat >=95 for 2 seconds; one eligible part loses 0.03 condition |
-| Expedition idle drain | 0.01 Energy/s |
-| Cooling | existing scale 1 and cost 0.25 Energy per Heat removed |
+| Thermal input | 1.5 Heat/s times intensity |
+| Electrical input | 0.08 Energy/s times intensity |
+| Corrosion | one eligible installed part every 8 exposed seconds; 0.02 condition times intensity |
+| Sustained overheat | Heat >=95 continuously for 6 seconds; one eligible part loses 0.02 condition |
+| Expedition idle drain | 0 Energy/s |
+| Cooling | existing scale 1 and cost 0.05 Energy per Heat removed |
 
 Tuning lives in ExpeditionEnvironmentPolicy. Generic EnergyHeatSettings defaults
 remain accepted. The normal 600-second run deadline remains the outer bound.
@@ -43,8 +43,8 @@ remain accepted. The normal 600-second run deadline remains the outer bound.
 
 A live body's current room comes from ExpeditionRun.RoomAt on the server.
 SetEnvironmentalLoads replaces exactly one environmental Energy/Heat input.
-Safe/dormant/terminal exposure clears it without refilling Energy, clearing Heat
-or repairing parts. Environment processing precedes the GAS resource cadence,
+Safe/dormant/terminal exposure clears environmental loads. Safe/dormant terrain
+also permits the concrete recovery rule below; clearing loads itself never refills. Environment processing precedes the GAS resource cadence,
 so room transitions affect the next resource step. Cooling still spends real
 Energy and uses canonical condition-weighted CoolingCapacity.
 
@@ -60,8 +60,8 @@ body NetworkObjectId and a shared per-body damage pulse index. Core, Torso and
 arms are excluded. ApplyDamage changes the exact installed PartInstance and keeps
 its MechPartId, including when destroyed. Existing View/Changed reconciliation
 updates Mobility, capacities, resource bounds, compact UI and visible modules.
-No automatic detach or repair occurs. A short owner message names the damaged
-part and resulting condition. Partial corrosion time clears outside active acid;
+No automatic detach occurs. A short temporary owner alert names the damaged
+part without a normal-HUD percentage. Partial corrosion time clears outside active acid;
 critical time clears below 95 Heat. High stored Heat can still damage a mech in
 a Safe room until existing cooling actually lowers it. Catch-up is bounded to
 one pulse of each kind per frame, without hidden damage debt.
@@ -70,9 +70,9 @@ one pulse of each kind per frame, without hidden damage debt.
 
 Thermal rooms have orange emissive floor/vent silhouettes; Electrical rooms have
 cyan pulsing floor/pillars; Corrosive rooms have green translucent floor/volumes.
-Labels identify type and ACTIVE or DORMANT activation level. None adds navigation
-collision. Owner HUD shows storm, exposure, rate, canonical Energy/Heat and recent
-damage. Storm transitions show a temporary prominent activation announcement.
+Active labels identify the immediate danger; dormant labels are hidden. None adds
+navigation collision. Owner HUD shows one hazard chip, Energy/Heat bars and recent
+short damage alerts. Storm increases show a temporary STORM INTENSIFYING message.
 Existing service, hack and purge UI remains intact.
 
 Despawn, disconnect, terminal completion and reset clear tracked environment
@@ -83,20 +83,33 @@ installed parts. A new run constructs a fresh clock/plan and new body state.
 
 Run build, product tests, the existing -RunLoop offline and local two-peer modes,
 and diff check. Focused probes shorten authored storm phases to 20 seconds and
-retain a bounded 600-second process limit for real collision routes. They enable
+retain a bounded 1200-second process limit for real collision routes. They enable
 automatic resources throughout environment travel, hacking and environment
 purge; explicit resource boundary setups isolate electrical/overheat experiments,
-and are not gameplay refill mechanisms. Historical parasite-only timing checks
+and are not gameplay refill mechanisms. The diagnostic run overrides its deadline
+to 1200 seconds for repeated cross-map visits; the production deadline stays 600. Historical parasite-only timing checks
 remain paused before this live environmental sequence. Evidence and failed
 attempt history stay under game/artifacts/run_loop/.
 
-No new enemies/minigames, repair, batteries/recharging, inventory, crafting,
+No new enemies/minigames, repair items, batteries, inventory, crafting,
 death/revive, resistances, perks/progression, dynamic weather/lightning physics,
 minimap or final art/audio/VFX. Human seed playtests determine go/no-go quality;
 automated acceptance proves the concrete systemic behavior only.
 
-Acceptance history: `game/artifacts/run_loop/environment_acceptance_20261020/summary.json`
-records build, product tests, offline/local two-peer results, cleanup and the
-preserved probe routing failure. Normal seed 120000 has EnvironmentSignature
-1D9AC6893851FD1B; the 20-second focused configuration has 21EC2C8F51F5D48A.
-LayoutSignature remains FF0CFD1B7C7D6F38.
+## Concrete safe recovery
+
+The server environment controller tracks one stationary timer per body. Safe or
+currently dormant terrain, no parasite claim, horizontal velocity and recorded
+movement magnitude <=0.1 qualify. After 2.5 seconds, the existing native ASC
+receives one Energy/second, capped at current PowerCapacity. Normal cooling
+continues and retains its real Energy cost. Movement, infection or an active
+hazard immediately clears the stationary and stabilization timers.
+
+Every 3.5 recovering seconds, one lowest-condition installed Sensor, LeftLeg,
+RightLeg, Power or Cooling module gains 0.05 condition, never above 0.50. Fixed
+slot order breaks ties. Destroyed installed modules qualify; empty slots do not.
+Core, Torso and arms never stabilize. NetworkMechBody.SetCondition preserves the
+exact PartInstance and MechPartId, publishes composition and reconciles GAS.
+Clients only observe replicated resources, conditions and Recovering state.
+Teardown/reset discards all recovery timing; the next run starts with fresh
+conditions/resources and exposure. STABILIZING is a small normal-HUD state.

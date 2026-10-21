@@ -6,11 +6,12 @@ namespace MechSurvival.Player;
 public static class MobilityMovementPolicy
 {
     public const float SpeedPerMobility = 3;
+    public const float EmergencyMinimum = 3.5f;
 
     public static float Speed(float mobility, bool hasMobility)
     {
         if (!float.IsFinite(mobility) || mobility < 0 || mobility > float.MaxValue / SpeedPerMobility)
             throw new ArgumentOutOfRangeException(nameof(mobility));
-        return hasMobility ? mobility * SpeedPerMobility : 0;
+        return Math.Max(EmergencyMinimum, hasMobility ? mobility * SpeedPerMobility : 0);
     }
 }

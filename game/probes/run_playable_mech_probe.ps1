@@ -49,7 +49,7 @@ function Get-FrozenState {
 # Participants are test-owned local Godot processes only. No VM or Steam session.
 @{ run_loop = [bool]$RunLoop; parasite = [bool]$Parasite; salvage = [bool]$Salvage; service = [bool]$Service; field_parts = [bool]$FieldParts; assertions = $(if ($RunLoop) { 'deterministic expedition seed/signature/placements; real graph collision traversal; parasite chase and purge; three real salvage successes; distant all-active extraction; fresh seed/layout/object/reward identities; full cleanup' } elseif ($Parasite) { 'normal lurking parasite; semantic automatic attachment; stable separate identity/anchor; native additive resource pressure; late attachment observation; self and both teammate directions; wrong/timeout retry; anti-mash; forged/hijack/resource guards; no restoration; all-state reset/fresh IDs; salvage/field/body regression' } elseif ($Salvage) { 'normal neutral machine/reward preview; host/client real interaction and four-symbol success; exact reward references/IDs released once; carry/install through field service; hijack/forged/invalid/preview rejection; progress/state/loot convergence; wrong/timeout/range failures; all-state round cleanup and fresh machine/reward IDs' } elseif ($Service) { 'host/client detach, exact instance/id transfer, reinstall, replace, incompatible/forged/invalid/empty rejection, canonical body/GAS convergence, measured Mobility movement, Energy/Heat preservation, carry reconciliation, reset/fresh identities/cleanup' } elseif ($FieldParts) { 'two real loose parts; projection and server instance; host pickup before client observation; anchor follow; one-item capacity; both owner request paths; stable IDs/drop transforms; client guards; reset and fresh identities' } else { 'playable mobility regression' }); mode = $Mode; run_id = $RunId; godot = $Godot; scene = 'res://game/probes/playable_mech_probe.tscn';
     build_sha = (& git -C $repo rev-parse HEAD); source_status = @(& git -C $repo status --short);
-    timeout_seconds = $(if ($RunLoop) { 600 } else { 90 }); transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
+    timeout_seconds = $(if ($RunLoop) { 1200 } else { 90 }); transport = 'local ENet (or offline)'; vm = 'not used'; steam = 'no Steam session requested';
     profile = $profile; profile_policy = 'Disposable APPDATA, restored and deleted after each run. Request command-level approval if sandbox access is insufficient.' } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath "$evidence/contract.json"
 
@@ -64,6 +64,8 @@ function Start-Probe([string]$Role, [string[]]$Extra) {
     else { $arguments += @('res://game/probes/playable_mech_probe.tscn','--') + $Extra }
     $process = Start-Process -FilePath $Godot -ArgumentList $arguments -WorkingDirectory $repo -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput "$evidence/$Role.stdout.log" -RedirectStandardError "$evidence/$Role.stderr.log"
+    # Retain the process handle before a fast editor exit (also supports Windows PowerShell).
+    $null = $process.Handle
     return $process
 }
 try {
@@ -99,7 +101,7 @@ try {
         $stage = 'host_ready'
         $owned += Start-Probe 'client' @('--playable-client')
     }
-    $timeout = if ($Mode -eq 'Import') { 60000 } elseif ($RunLoop) { 600000 } else { 90000 }
+    $timeout = if ($Mode -eq 'Import') { 60000 } elseif ($RunLoop) { 1200000 } else { 90000 }
     foreach ($process in $owned) {
         if (-not $process.WaitForExit($timeout)) { throw "Process $($process.Id) exceeded bounded timeout." }
         $process.Refresh()
@@ -148,7 +150,7 @@ try {
     }
     if ($RunLoop -and $Mode -ne 'Import') {
         $runLog = "$evidence/$(if ($Mode -eq 'Offline') { 'offline' } else { 'host' }).stdout.log"
-        foreach ($marker in @('RUN_LAYOUT_PASS','RUN_CHASE_PASS','RUN_OBJECTIVE_PASS','RUN_SUCCESS_PASS','RUN_FRESH_PASS','ENVIRONMENT_PLAN','ENVIRONMENT_THERMAL_SAFE_PASS','ENVIRONMENT_ELECTRICAL_PASS','ENVIRONMENT_CORROSION_PASS','ENVIRONMENT_OVERHEAT_PASS','ENVIRONMENT_COMPOSITION_PASS','ENVIRONMENT_STORM_PASS','RUN_ACCEPTANCE_PASS')) {
+        foreach ($marker in @('RUN_LAYOUT_PASS','RUN_CHASE_PASS','RUN_OBJECTIVE_PASS','RUN_SUCCESS_PASS','RUN_FRESH_PASS','ENVIRONMENT_PLAN','ENVIRONMENT_THERMAL_SAFE_PASS','ENVIRONMENT_ELECTRICAL_PASS','ENVIRONMENT_CORROSION_PASS','ENVIRONMENT_OVERHEAT_PASS','ENVIRONMENT_COMPOSITION_PASS','ENVIRONMENT_STORM_PASS','RESCUE_PASS','RUN_ACCEPTANCE_PASS')) {
             if (-not (Select-String -LiteralPath $runLog -Pattern $marker -Quiet)) { throw "Missing run assertion: $marker" }
         }
         if ($Mode -eq 'Multiplayer' -and -not (Select-String -LiteralPath "$evidence/client.stdout.log" -Pattern 'RUN_CLIENT_CHASE_PASS' -Quiet)) { throw 'Client chase movement convergence missing.' }

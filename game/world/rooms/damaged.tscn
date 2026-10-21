@@ -6,33 +6,33 @@ albedo_color = Color(0.29, 0.2, 0.34, 1)
 
 [sub_resource type="BoxMesh" id="floor_mesh"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="floor_shape"]
 
-size = Vector3(22, 0.4, 22)
+size = Vector3(42, 0.4, 42)
 
 [sub_resource type="BoxMesh" id="prop_mesh_0"]
 
-size = Vector3(2, 5, 5)
+size = Vector3(3.2, 6.25, 8)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_0"]
 
-size = Vector3(2, 5, 5)
+size = Vector3(3.2, 6.25, 8)
 
 [sub_resource type="BoxMesh" id="prop_mesh_1"]
 
-size = Vector3(6, 1.5, 3)
+size = Vector3(9.6, 1.875, 4.8)
 
 material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_1"]
 
-size = Vector3(6, 1.5, 3)
+size = Vector3(9.6, 1.875, 4.8)
 
 [sub_resource type="CylinderMesh" id="prop_mesh_2"]
 
@@ -46,7 +46,7 @@ material = SubResource("floor_material")
 
 [sub_resource type="BoxShape3D" id="prop_shape_2"]
 
-size = Vector3(4, 2, 4)
+size = Vector3(6.4, 2.5, 6.4)
 
 [node name="damaged" type="Node3D"]
 
@@ -64,7 +64,7 @@ shape = SubResource("floor_shape")
 
 [node name="Landmark" type="Label3D" parent="."]
 
-position = Vector3(-6, 7, -6)
+position = Vector3(-10.8, 7, -10.8)
 
 text = "DAMAGED"
 
@@ -74,7 +74,7 @@ billboard = 1
 
 [node name="Obstacle0" type="StaticBody3D" parent="."]
 
-position = Vector3(-7, 2.5, -6)
+position = Vector3(-12.6, 3.125, -10.8)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle0"]
 
@@ -86,7 +86,7 @@ shape = SubResource("prop_shape_0")
 
 [node name="Obstacle1" type="StaticBody3D" parent="."]
 
-position = Vector3(6, 0.75, -7)
+position = Vector3(10.8, 0.9375, -12.6)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle1"]
 
@@ -98,7 +98,7 @@ shape = SubResource("prop_shape_1")
 
 [node name="Obstacle2" type="StaticBody3D" parent="."]
 
-position = Vector3(-6, 1, 7)
+position = Vector3(-10.8, 1.25, 12.6)
 
 [node name="Mesh" type="MeshInstance3D" parent="Obstacle2"]
 

@@ -18,7 +18,8 @@ public partial class PlayableMechProbe
     private async Task RunStage(int stage, string command = "run_observe", Parasite? parasite = null)
     {
         RpcId(_remote, MethodName.CommandRpc, stage, command, JsonSerializer.Serialize(new RunPacket(Expedition.Seed, Expedition.Layout.Signature, Expedition.Layout.Rooms.Sum(r => r.Connections.Length), Expedition.View!, Expedition.NetworkObject.Id.Value, Placements(), parasite?.NetworkObject.Id.Value ?? 0, Parasites.Select(p => new ThreatSample(p.NetworkObject.Id.Value, Expedition.RoomAt(p.InitialPosition), p.GlobalPosition.X, p.GlobalPosition.Y, p.GlobalPosition.Z, p.ChaseTargetId, p.AttachedNetworkObjectId)).ToArray())));
-        await Until(() => _ack == stage, 60000);
+        // The farthest extraction route spans nine 42m sectors; allow degraded client travel.
+        await Until(() => _ack == stage, command == "run_extract" ? 180000UL : 60000UL);
     }
     private async Task WalkTo(float x, float z)
     {
@@ -51,7 +52,8 @@ public partial class PlayableMechProbe
     private async Task RunLoopAcceptance(bool offline)
     {
         GD.Print("PLAYABLE_READY role=server"); if (!offline) await Until(() => _hello);
-        RunContent.StormPhaseSeconds = 20; RunContent.ProbeSeed = 120000; StartRound(); CheckFresh(offline ? 1 : 2); CheckRegistry();
+        // Diagnostic travel visits hazards repeatedly across enlarged sectors. Normal product deadline stays 600.
+        RunContent.DurationSeconds = 1200; RunContent.StormPhaseSeconds = 20; RunContent.ProbeSeed = 120000; StartRound(); CheckFresh(offline ? 1 : 2); CheckRegistry();
         // Capture placements before the first simulation frame advances roaming.
         Require(Expedition.Layout.Rooms.Count == 18 && Machines.Length == 5 && Parasites.Length == 3 && Loose.Length == 0, "Expedition composition invalid.");
         Require(Machines.Select(m => Expedition.RoomAt(m.GlobalPosition)).SequenceEqual(Expedition.Layout.Salvage), "Salvage assignment mismatch.");
